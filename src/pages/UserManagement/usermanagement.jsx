@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Sidebar from "../../components/SideBar";
 import Header from "../../components/Header";
-import User from "./components/user"
+import User from "./components/user";
 
 const Inventory = () => {
   const [activePage, setActivePage] = useState("Dash");
-  const [Inventory, setInventory] = useState(false);
 
   const handleNavigate = (page) => {
     setActivePage(page);
@@ -16,7 +15,7 @@ const Inventory = () => {
       <Sidebar active={activePage} onNavigate={handleNavigate} />
       <div className="flex-1 py-6 px-8 max-h-screen min-h-screen overflow-scroll">
         <Header />
-                 <User setInventory={User} />
+        <User setInventory={User} />
       </div>
     </div>
   );

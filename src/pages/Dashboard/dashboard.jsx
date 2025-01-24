@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Sidebar from "../../components/SideBar";
 import Header from "../../components/Header";
 import Dash from "./components/dash"
 
 const Inventory = () => {
   const [activePage, setActivePage] = useState("Dash");
-  const [Inventory, setInventory] = useState(false);
 
   const handleNavigate = (page) => {
     setActivePage(page);

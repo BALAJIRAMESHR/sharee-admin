@@ -1,54 +1,59 @@
-import React, { useState } from 'react';
-import { Upload, X } from 'lucide-react';
+import React, { useState } from "react";
+import { Upload, X, GripVertical } from "lucide-react";
 
 const AddProduct = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
-    productName: '',
-    productId: '',
-    category: 'Women',
-    variant: '',
-    description: '',
-    actualPrice: '',
-    sellingPrice: '',
-    tax: '',
-    couponCode: '',
-    couponMethod: '',
-    color: '',
+    productName: "",
+    productCode: "",
+    category: "Women",
+    variant: "",
+    description: "",
+    actualPrice: "",
+    sellingPrice: "",
+    tax: "",
+    couponCode: "",
+    couponMethod: "",
+    color: "",
     images: [],
     tags: [],
-    stock: '',
-    availability: 'in-stock'
+    stock: "",
+    availability: "in-stock",
+    sareeSize: "5.5",
+    blouseSize: "0.80",
+    materialCare: [],
   });
 
   const [selectedImage, setSelectedImage] = useState(null);
   const [tags, setTags] = useState([]);
   const [isPriceSame, setIsPriceSame] = useState(false);
+  const [materialCare, setMaterialCare] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
 
-    if (isPriceSame && name === 'actualPrice') {
-      setFormData(prev => ({
+    if (isPriceSame && name === "actualPrice") {
+      setFormData((prev) => ({
         ...prev,
-        sellingPrice: value
+        sellingPrice: value,
       }));
     }
   };
 
   const handleImageSelect = (e) => {
     const files = Array.from(e.target.files);
-    if (files.length > 0 && formData.images.length < 4) {
-      files.slice(0, 4 - formData.images.length).forEach(file => {
+    if (files.length > 0 && formData.images.length < 6) {
+      files.slice(0, 6 - formData.images.length).forEach((file) => {
         const reader = new FileReader();
         reader.onloadend = () => {
           setSelectedImage(reader.result);
-          setFormData(prev => ({
+          setFormData((prev) => ({
             ...prev,
-            images: [...prev.images, reader.result].slice(0, 4)
+            images: [...prev.images, reader.result].slice(0, 6),
           }));
         };
         reader.readAsDataURL(file);
@@ -56,43 +61,95 @@ const AddProduct = ({ onSubmit, onCancel }) => {
     }
   };
 
+  const handleDragStart = (e, index) => {
+    e.dataTransfer.setData('text/plain', index);
+    e.target.classList.add('opacity-50');
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.classList.remove('opacity-50');
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.target.closest('.image-container')?.classList.add('border-purple-500');
+  };
+
+  const handleDragLeave = (e) => {
+    e.target.closest('.image-container')?.classList.remove('border-purple-500');
+  };
+
   const handleImageDrop = (e) => {
     e.preventDefault();
+    setIsDragging(false);
     const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0 && formData.images.length < 4) {
+    if (files.length > 0 && formData.images.length < 6) {
       handleImageSelect({ target: { files } });
     }
   };
 
   const handleRemoveImage = (index) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index)
+      images: prev.images.filter((_, i) => i !== index),
     }));
     if (formData.images.length === 1) {
       setSelectedImage(null);
     }
   };
 
-  const handleDragOver = (e) => {
+  const handleDrop = (e, dropIndex) => {
     e.preventDefault();
+    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    if (dragIndex === dropIndex) return;
+
+    setFormData(prev => {
+      const newImages = [...prev.images];
+      const draggedImage = newImages[dragIndex];
+      newImages.splice(dragIndex, 1);
+      newImages.splice(dropIndex, 0, draggedImage);
+      return {
+        ...prev,
+        images: newImages
+      };
+    });
+
+    e.target.closest('.image-container')?.classList.remove('border-purple-500');
   };
 
   const handleAddTag = (tag) => {
     if (!tags.includes(tag)) {
       setTags([...tags, tag]);
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        tags: [...prev.tags, tag]
+        tags: [...prev.tags, tag],
       }));
     }
   };
 
   const handleRemoveTag = (tagToRemove) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
-    setFormData(prev => ({
+    setTags(tags.filter((tag) => tag !== tagToRemove));
+    setFormData((prev) => ({
       ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
+      tags: prev.tags.filter((tag) => tag !== tagToRemove),
+    }));
+  };
+
+  const handleAddMaterialCare = (care) => {
+    if (!materialCare.includes(care)) {
+      setMaterialCare([...materialCare, care]);
+      setFormData((prev) => ({
+        ...prev,
+        materialCare: [...prev.materialCare, care],
+      }));
+    }
+  };
+
+  const handleRemoveMaterialCare = (careToRemove) => {
+    setMaterialCare(materialCare.filter((care) => care !== careToRemove));
+    setFormData((prev) => ({
+      ...prev,
+      materialCare: prev.materialCare.filter((care) => care !== careToRemove),
     }));
   };
 
@@ -104,14 +161,15 @@ const AddProduct = ({ onSubmit, onCancel }) => {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-6">Add Product</h1>
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 gap-6">
           {/* Left Column */}
           <div className="space-y-4">
-            {/* Previous left column inputs remain the same until price section */}
             <div>
-              <label className="block text-sm font-medium mb-1">Product Name</label>
+              <label className="block text-sm font-medium mb-1">
+                Product Name
+              </label>
               <input
                 type="text"
                 name="productName"
@@ -122,11 +180,13 @@ const AddProduct = ({ onSubmit, onCancel }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Product ID</label>
+              <label className="block text-sm font-medium mb-1">
+                Product Code
+              </label>
               <input
                 type="text"
-                name="productId"
-                value={formData.productId}
+                name="productCode"
+                value={formData.productCode}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded-md"
               />
@@ -159,12 +219,16 @@ const AddProduct = ({ onSubmit, onCancel }) => {
                   <option value="Silk">Silk</option>
                   <option value="Cotton">Cotton</option>
                 </select>
-                <button type="button" className="px-3 py-2 border rounded-md">+</button>
+                <button type="button" className="px-3 py-2 border rounded-md">
+                  +
+                </button>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
+              <label className="block text-sm font-medium mb-1">
+                Description
+              </label>
               <textarea
                 name="description"
                 value={formData.description}
@@ -175,7 +239,9 @@ const AddProduct = ({ onSubmit, onCancel }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Stock Quantity</label>
+              <label className="block text-sm font-medium mb-1">
+                Stock Quantity
+              </label>
               <input
                 type="number"
                 name="stock"
@@ -187,7 +253,9 @@ const AddProduct = ({ onSubmit, onCancel }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Availability</label>
+              <label className="block text-sm font-medium mb-1">
+                Availability
+              </label>
               <select
                 name="availability"
                 value={formData.availability}
@@ -202,7 +270,37 @@ const AddProduct = ({ onSubmit, onCancel }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Actual Price</label>
+              <label className="block text-sm font-medium mb-1">
+                Saree Size (meters)
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                name="sareeSize"
+                value={formData.sareeSize}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Blouse Size (meters)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="blouseSize"
+                value={formData.blouseSize}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Actual Price
+              </label>
               <input
                 type="number"
                 name="actualPrice"
@@ -213,7 +311,9 @@ const AddProduct = ({ onSubmit, onCancel }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Selling Price</label>
+              <label className="block text-sm font-medium mb-1">
+                Selling Price
+              </label>
               <input
                 type="number"
                 name="sellingPrice"
@@ -231,73 +331,99 @@ const AddProduct = ({ onSubmit, onCancel }) => {
                 onChange={(e) => {
                   setIsPriceSame(e.target.checked);
                   if (e.target.checked) {
-                    setFormData(prev => ({
+                    setFormData((prev) => ({
                       ...prev,
-                      sellingPrice: prev.actualPrice
+                      sellingPrice: prev.actualPrice,
                     }));
                   }
                 }}
                 className="rounded"
               />
-              <label className="text-sm">Actual Price same as Selling Price</label>
+              <label className="text-sm">
+                Actual Price same as Selling Price
+              </label>
             </div>
           </div>
 
           {/* Right Column */}
           <div className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div
+              className="relative border-2 border-dashed border-gray-300 rounded-lg p-6"
+              onDrop={handleImageDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+            >
+              {isDragging && (
+                <div className="absolute inset-0 bg-purple-50 bg-opacity-90 flex items-center justify-center rounded-lg z-10">
+                  <div className="text-center">
+                    <Upload className="w-12 h-12 mx-auto mb-2 text-purple-600 stroke-1" />
+                    <p className="text-purple-600 font-medium">
+                      Drop your images here
+                    </p>
+                    <p className="text-sm text-purple-500">Release to upload</p>
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-6">
                 {formData.images.map((image, index) => (
-                  <div key={index} className="relative">
+                  <div 
+                    key={index} 
+                    className="image-container relative bg-gray-50 p-2 rounded-lg group transition-all hover:shadow-md border-2 border-transparent"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, index)}
+                  >
+                    <div className="absolute top-1 left-1 p-1.5 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity cursor-move">
+                      <GripVertical className="w-4 h-4 text-gray-600" />
+                    </div>
                     <img
                       src={image}
                       alt={`Product ${index + 1}`}
-                      className="w-full h-48 object-cover rounded-lg"
+                      className="w-full h-40 object-contain rounded-lg"
+                      draggable={false}
                     />
                     <button
                       type="button"
                       onClick={() => handleRemoveImage(index)}
-                      className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-md"
+                      className="absolute top-1 right-1 p-1.5 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 hover:bg-gray-50 transition-all"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4 text-gray-600" />
                     </button>
                   </div>
                 ))}
-                {formData.images.length < 4 && (
-                  <div className="h-48 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg">
-                    <div className="text-gray-400">
-                      <Upload className="w-16 h-16 mx-auto mb-2" />
-                      <p className="text-sm">Upload Image</p>
-                      <p className="text-xs text-gray-500">({4 - formData.images.length} remaining)</p>
+                {formData.images.length < 6 && (
+                  <label className={`flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 p-2 cursor-pointer hover:bg-gray-100 transition-all hover:shadow-md ${formData.images.length === 0 ? 'col-span-3 h-40' : 'h-50'}`}>
+                    <div className="text-center">
+                      <Upload className={`mx-auto mb-2 stroke-1 ${formData.images.length === 0 ? 'w-10 h-10 text-gray-400' : 'w-10 h-10 text-gray-400'}`} />
+                      <p className={`font-medium text-gray-600 ${formData.images.length === 0 ? 'text-sm' : 'text-sm'}`}>
+                        Upload Product Images
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Drag & drop or click to browse
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        ({6 - formData.images.length} of 6 remaining) • PNG, JPG • 800x1200px
+                      </p>
                     </div>
-                  </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageSelect}
+                    />
+                  </label>
                 )}
               </div>
             </div>
 
-            <div
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center"
-              onDrop={handleImageDrop}
-              onDragOver={handleDragOver}
-            >
-              <p className="text-sm text-gray-600">
-                Drop your Files here or{' '}
-                <label className="text-blue-500 cursor-pointer">
-                  Browse
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    multiple
-                    onChange={handleImageSelect}
-                  />
-                </label>
-              </p>
-              <p className="text-xs text-gray-500 mt-2">Maximum 4 images allowed</p>
-            </div>
-
             <div>
-              <label className="block text-sm font-medium mb-1">Tax (in percentage)</label>
+              <label className="block text-sm font-medium mb-1">
+                Tax (in percentage)
+              </label>
               <input
                 type="number"
                 name="tax"
@@ -308,7 +434,9 @@ const AddProduct = ({ onSubmit, onCancel }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Coupon / Code</label>
+              <label className="block text-sm font-medium mb-1">
+                Coupon / Code
+              </label>
               <input
                 type="text"
                 name="couponCode"
@@ -320,7 +448,9 @@ const AddProduct = ({ onSubmit, onCancel }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Coupons Method</label>
+              <label className="block text-sm font-medium mb-1">
+                Coupons Method
+              </label>
               <select
                 name="couponMethod"
                 value={formData.couponMethod}
@@ -340,7 +470,7 @@ const AddProduct = ({ onSubmit, onCancel }) => {
                 name="color"
                 value={formData.color}
                 onChange={handleInputChange}
-                placeholder="-Type Color-"
+                placeholder="Type Color Code"
                 className="w-full p-2 border rounded-md"
               />
             </div>
@@ -369,10 +499,47 @@ const AddProduct = ({ onSubmit, onCancel }) => {
                   type="text"
                   placeholder="Add tags"
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === "Enter") {
                       e.preventDefault();
                       handleAddTag(e.target.value);
-                      e.target.value = '';
+                      e.target.value = "";
+                    }
+                  }}
+                  className="w-full p-2 border rounded-md"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Material & Care
+              </label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {materialCare.map((care, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-gray-200 rounded-md text-sm flex items-center gap-1"
+                  >
+                    {care}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveMaterialCare(care)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Add material & care instructions"
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddMaterialCare(e.target.value);
+                      e.target.value = "";
                     }
                   }}
                   className="w-full p-2 border rounded-md"

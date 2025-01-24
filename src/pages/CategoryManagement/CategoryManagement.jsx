@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import Sidebar from '../../components/SideBar';
-import Header from '../../components/Header';
-import MainCategoryManagement from './components/MainCategoryPage';
+import React, { useState } from "react";
+import Sidebar from "../../components/SideBar";
+import Header from "../../components/Header";
+import MainCategoryManagement from "./components/MainCategoryPage";
 
 const CategoryManagement = () => {
-  const [activePage, setActivePage] = useState('Category Management');
-  const [CategoryForm, setCategoryForm] = useState(false);
+  const [activePage, setActivePage] = useState("Category Management");
 
   const handleNavigate = (page) => {
     setActivePage(page);

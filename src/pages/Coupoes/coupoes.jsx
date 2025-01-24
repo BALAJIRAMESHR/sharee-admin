@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Sidebar from "../../components/SideBar";
 import Header from "../../components/Header";
-import Coupones from "./componenets/coupones"
+import Coupones from "./componenets/coupones";
 
 const Inventory = () => {
   const [activePage, setActivePage] = useState("Coupones");
-  const [Inventory, setInventory] = useState(false);
 
   const handleNavigate = (page) => {
     setActivePage(page);
@@ -16,7 +15,7 @@ const Inventory = () => {
       <Sidebar active={activePage} onNavigate={handleNavigate} />
       <div className="flex-1 py-6 px-8 max-h-screen min-h-screen overflow-scroll">
         <Header />
-                 <Coupones setInventory={ Coupones} />
+        <Coupones setInventory={Coupones} />
       </div>
     </div>
   );

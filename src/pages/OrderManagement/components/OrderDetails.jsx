@@ -29,7 +29,7 @@ const RefundModal = ({ onRequestClose, id, totalAmt }) => {
 };
 
 function OrderDetails({ orderDetails: initialOrderDetails }) {
-  const [orderedProducts, setOrderedProducts] = useState([
+  const orderedProducts = [
     {
       id: 1,
       image: "/api/placeholder/100/100",
@@ -44,7 +44,7 @@ function OrderDetails({ orderDetails: initialOrderDetails }) {
       quantity: 1,
       price: "1499.99"
     }
-  ]);
+  ];
   
   const [shippingAddress, setShippingAddress] = useState({
     shippingName: "John Doe",
@@ -92,17 +92,17 @@ function OrderDetails({ orderDetails: initialOrderDetails }) {
     }
   }, [initialOrderDetails]);
 
-  const getStatusColor = (status) => {
-    const colors = {
-      New: "bg-blue-100 text-blue-800",
-      Processing: "bg-yellow-100 text-yellow-800",
-      Hold: "bg-red-100 text-red-800",
-      Packed: "bg-purple-100 text-purple-800",
-      Shipped: "bg-indigo-100 text-indigo-800",
-      Delivered: "bg-green-100 text-green-800"
-    };
-    return colors[status] || "bg-gray-100 text-gray-800";
-  };
+  // const getStatusColor = (status) => {
+  //   const colors = {
+  //     New: "bg-blue-100 text-blue-800",
+  //     Processing: "bg-yellow-100 text-yellow-800",
+  //     Hold: "bg-red-100 text-red-800",
+  //     Packed: "bg-purple-100 text-purple-800",
+  //     Shipped: "bg-indigo-100 text-indigo-800",
+  //     Delivered: "bg-green-100 text-green-800"
+  //   };
+  //   return colors[status] || "bg-gray-100 text-gray-800";
+  // };
 
   return (
     <div className="p-6 space-y-6">

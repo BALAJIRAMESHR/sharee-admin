@@ -1,171 +1,137 @@
-import React, { useState, useEffect } from 'react';
-import { MoreVertical, Plus, Edit, Trash2 } from 'lucide-react';
-
-const AddCategoryModal = ({ onClose, onAdd }) => {
-  const [categoryName, setCategoryName] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null);
-
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setSelectedImage(imageUrl);
-    }
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setSelectedImage(imageUrl);
-    }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleSubmit = () => {
-    if (categoryName.trim()) {
-      onAdd(categoryName, selectedImage);
-      onClose();
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Add New Category</h2>
-          <button 
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ×
-          </button>
-        </div>
-
-        <div 
-          className="border-2 border-dashed border-gray-300 rounded-lg mb-4 p-4"
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-        >
-          {selectedImage ? (
-            <img
-              src={selectedImage}
-              alt="Selected category"
-              className="w-full h-48 object-cover rounded-lg"
-            />
-          ) : (
-            <div className="h-48 flex flex-col items-center justify-center text-gray-400">
-              <p>Drop your image here or</p>
-              <label className="text-purple-600 cursor-pointer hover:text-purple-700">
-                Browse
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                />
-              </label>
-            </div>
-          )}
-        </div>
-
-        <input
-          type="text"
-          placeholder="Category Name"
-          value={categoryName}
-          onChange={(e) => setCategoryName(e.target.value)}
-          className="w-full px-3 py-2 border rounded-md mb-4"
-        />
-
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!categoryName.trim()}
-            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Add
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+import React, { useState, useEffect } from "react";
+import { MoreVertical, Plus, Edit, Trash2 } from "lucide-react";
+import AddCategoryModal from "./AddCategoryModal";
+import { API_BASE_URL } from "../../../config/api";
 
 const CategoryManagement = () => {
-  const [categories, setCategories] = useState([
-    {
-      id: 1,
-      image: "/path/to/kanchipuram-soft.jpg",
-      name: "Kanchipuram pure soft silk"
-    },
-    {
-      id: 2,
-      image: "/path/to/kanchipuram-bridal.jpg",
-      name: "Kanchipuram bridal silk"
-    },
-    {
-      id: 3,
-      image: "/path/to/kanchipuram-pure.jpg",
-      name: "Kanchipuram pure silk"
-    },
-    {
-      id: 4,
-      image: "/path/to/brocade.jpg",
-      name: "Brocade kanchipuram silk"
-    },
-    {
-      id: 5,
-      image: "/path/to/ikat.jpg",
-      name: "IKAT"
-    },
-    {
-      id: 6,
-      image: "/path/to/semi-silk.jpg",
-      name: "Semi silk"
-    },
-    {
-      id: 7,
-      image: "/path/to/art-silk.jpg",
-      name: "Art silk"
-    },
-    {
-      id: 8,
-      image: "/path/to/kubera.jpg",
-      name: "Kubera pattu/ soft silk"
-    },
-    {
-      id: 9,
-      image: "/path/to/mysuru.jpg",
-      name: "Mysuru silk"
-    },
-    {
-      id: 10,
-      image: "/path/to/banarasi.jpg",
-      name: "Banarasi"
-    }
-  ]);
-
+  const [categories, setCategories] = useState([]);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
 
   useEffect(() => {
-    const handleClickOutside = () => setOpenMenuId(null);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      console.log("Fetching categories...");
+      const response = await fetch(`${API_BASE_URL}/categories/allcategory`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Categories fetched:", data);
+      setCategories(data);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      alert("Failed to load categories. Please try again later.");
+    }
+  };
+
+  const handleAddCategory = async (categoryName, image, categoryType) => {
+    try {
+      const imageName = image.name;
+
+      const response = await fetch(`${API_BASE_URL}/categories/addcategory`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          categoryName,
+          categoryType,
+          categotyImage: imageName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to add category");
+      }
+
+      const result = await response.json();
+      console.log("Success:", result);
+
+      await fetchCategories();
+      setShowAddModal(false);
+    } catch (error) {
+      console.error("Error adding category:", error);
+      alert(`Failed to add category: ${error.message}`);
+    }
+  };
+
+  const handleDelete = async (categoryId) => {
+    setCategoryToDelete(categoryId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/categories/deletecategory/${categoryToDelete}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete category");
+      }
+
+      await fetchCategories();
+      setShowDeleteModal(false);
+      setCategoryToDelete(null);
+      setOpenMenuId(null);
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      alert("Failed to delete category. Please try again.");
+    }
+  };
+
+  const handleSaveEdit = async (newImage, categoryType) => {
+    if (newCategoryName.trim()) {
+      try {
+        const imageName = newImage
+          ? newImage.name
+          : editingCategory.categotyImage.split("/").pop();
+
+        const response = await fetch(
+          `${API_BASE_URL}/categories/editcategory/${editingCategory._id}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              categoryName: newCategoryName,
+              categoryType: categoryType,
+              categotyImage: imageName,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to update category");
+        }
+
+        await fetchCategories();
+        setIsEditing(false);
+        setEditingCategory(null);
+        setNewCategoryName("");
+      } catch (error) {
+        console.error("Error updating category:", error);
+        alert(error.message || "Failed to update category. Please try again.");
+      }
+    }
+  };
 
   const toggleMenu = (e, categoryId) => {
     e.stopPropagation();
@@ -174,50 +140,21 @@ const CategoryManagement = () => {
 
   const handleEdit = (category) => {
     setEditingCategory(category);
-    setNewCategoryName(category.name);
+    setNewCategoryName(category.categoryName);
     setIsEditing(true);
     setOpenMenuId(null);
   };
 
-  const handleDelete = (categoryId) => {
-    if (window.confirm('Are you sure you want to delete this category?')) {
-      setCategories(categories.filter(cat => cat.id !== categoryId));
-    }
-    setOpenMenuId(null);
-  };
-
-  const handleSaveEdit = () => {
-    if (newCategoryName.trim()) {
-      setCategories(categories.map(cat => 
-        cat.id === editingCategory.id 
-          ? { ...cat, name: newCategoryName }
-          : cat
-      ));
-      setIsEditing(false);
-      setEditingCategory(null);
-      setNewCategoryName('');
-    }
-  };
-
-  const handleAddCategory = (categoryName, image) => {
-    const newCategory = {
-      id: categories.length + 1,
-      name: categoryName,
-      image: image || '/api/placeholder/64/64'
-    };
-    setCategories([...categories, newCategory]);
-  };
-
   const ActionMenu = ({ category }) => (
     <div className="relative">
-      <button 
-        onClick={(e) => toggleMenu(e, category.id)} 
+      <button
+        onClick={(e) => toggleMenu(e, category._id)}
         className="p-2 hover:bg-gray-100 rounded-full"
       >
         <MoreVertical size={18} className="text-gray-500" />
       </button>
-      
-      {openMenuId === category.id && (
+
+      {openMenuId === category._id && (
         <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
           <div className="py-1">
             <button
@@ -228,7 +165,7 @@ const CategoryManagement = () => {
               Edit
             </button>
             <button
-              onClick={() => handleDelete(category.id)}
+              onClick={() => handleDelete(category._id)}
               className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-100 w-full"
             >
               <Trash2 size={16} />
@@ -240,48 +177,189 @@ const CategoryManagement = () => {
     </div>
   );
 
-  const EditModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">Edit Category</h2>
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-2">Category Name</label>
-          <input
-            type="text"
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md"
-          />
-        </div>
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => {
-              setIsEditing(false);
-              setEditingCategory(null);
-            }}
-            className="px-4 py-2 border rounded-md hover:bg-gray-50"
+  const EditModal = () => {
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [previewImage, setPreviewImage] = useState(
+      editingCategory.categotyImage
+    );
+    const [editCategoryType, setEditCategoryType] = useState(
+      editingCategory.categoryType
+    );
+
+    const handleImageSelect = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        if (file.type.startsWith("image/")) {
+          setSelectedImage(file);
+          const imageUrl = URL.createObjectURL(file);
+          setPreviewImage(imageUrl);
+        } else {
+          alert("Please select an image file");
+        }
+      }
+    };
+
+    const handleDrop = (e) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        if (file.type.startsWith("image/")) {
+          setSelectedImage(file);
+          const imageUrl = URL.createObjectURL(file);
+          setPreviewImage(imageUrl);
+        } else {
+          alert("Please drop an image file");
+        }
+      }
+    };
+
+    const handleDragOver = (e) => {
+      e.preventDefault();
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <h2 className="text-xl font-bold mb-4">Edit Category</h2>
+
+          {/* Image Upload Area */}
+          <div
+            className="border-2 border-dashed border-gray-300 rounded-lg mb-4 p-4"
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
           >
-            Cancel
-          </button>
-          <button
-            onClick={handleSaveEdit}
-            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-          >
-            Save Changes
-          </button>
+            {previewImage ? (
+              <div className="relative">
+                <img
+                  src={previewImage}
+                  alt="Category"
+                  className="w-full h-48 object-cover rounded-lg"
+                />
+                <button
+                  onClick={() => {
+                    setSelectedImage(null);
+                    setPreviewImage(null);
+                  }}
+                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <div className="h-48 flex flex-col items-center justify-center text-gray-400">
+                <p>Drop your image here or</p>
+                <label className="text-purple-600 cursor-pointer hover:text-purple-700">
+                  Browse
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* Category Name Input */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              Category Name
+            </label>
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+
+          {/* Category Type Dropdown */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">
+              Category Type
+            </label>
+            <select
+              value={editCategoryType}
+              onChange={(e) => setEditCategoryType(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            >
+              <option value="Saree">Saree</option>
+              <option value="Others">Others</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => {
+                setIsEditing(false);
+                setEditingCategory(null);
+              }}
+              className="px-4 py-2 border rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleSaveEdit(selectedImage, editCategoryType)}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Save Changes
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  const DeleteConfirmationModal = ({ onClose, onConfirm }) => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+          <div className="flex flex-col items-center">
+            {/* Delete Icon Circle */}
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <Trash2 size={32} className="text-red-500" />
+            </div>
+
+            {/* Title */}
+            <h2 className="text-xl font-bold mb-2">Delete Category</h2>
+
+            {/* Message */}
+            <p className="text-gray-600 text-center mb-6">
+              Do you want to delete this category? This action can't be undone
+            </p>
+
+            {/* Buttons */}
+            <div className="flex gap-4 w-full">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onConfirm}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-semibold">Category Management</h1>
-          <span className="text-sm text-gray-500">{categories.length} categories</span>
+          <span className="text-sm text-gray-500">
+            {categories.length} categories
+          </span>
         </div>
-        <button 
+        <button
           onClick={() => setShowAddModal(true)}
           className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md flex items-center gap-2"
         >
@@ -295,8 +373,11 @@ const CategoryManagement = () => {
           <div className="col-span-2">
             <h3 className="text-sm font-medium text-gray-500">Product Image</h3>
           </div>
-          <div className="col-span-8">
+          <div className="col-span-4">
             <h3 className="text-sm font-medium text-gray-500">Category</h3>
+          </div>
+          <div className="col-span-4">
+            <h3 className="text-sm font-medium text-gray-500">Type</h3>
           </div>
           <div className="col-span-2">
             <h3 className="text-sm font-medium text-gray-500">Action</h3>
@@ -304,21 +385,29 @@ const CategoryManagement = () => {
         </div>
 
         {categories.map((category) => (
-          <div key={category.id} className="grid grid-cols-12 gap-4 p-4 border-b hover:bg-gray-50">
+          <div
+            key={category._id}
+            className="grid grid-cols-12 gap-4 p-4 border-b hover:bg-gray-50"
+          >
             <div className="col-span-2">
               <div className="w-16 h-16 overflow-hidden rounded">
                 <img
-                  src={category.image}
-                  alt={category.name}
+                  src={category.categotyImage}
+                  alt={category.categoryName}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.target.src = '/api/placeholder/64/64';
+                    e.target.src = "/api/placeholder/64/64";
                   }}
                 />
               </div>
             </div>
-            <div className="col-span-8 flex items-center">
-              <span className="text-sm">{category.name}</span>
+            <div className="col-span-4 flex items-center">
+              <span className="text-sm">{category.categoryName}</span>
+            </div>
+            <div className="col-span-4 flex items-center">
+              <span className="text-sm capitalize">
+                {category.categoryType}
+              </span>
             </div>
             <div className="col-span-2 flex items-center justify-end">
               <ActionMenu category={category} />
@@ -333,8 +422,18 @@ const CategoryManagement = () => {
           onAdd={handleAddCategory}
         />
       )}
-      
+
       {isEditing && <EditModal />}
+
+      {showDeleteModal && (
+        <DeleteConfirmationModal
+          onClose={() => {
+            setShowDeleteModal(false);
+            setCategoryToDelete(null);
+          }}
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   );
 };
