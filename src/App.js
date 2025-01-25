@@ -15,6 +15,7 @@ import Inventory from "./pages/Invetory/invetory.jsx";
 import Coupons from "./pages/Coupoes/coupoes.jsx";
 import User from "./pages/UserManagement/usermanagement.jsx";
 import Login from "./pages/Login/Login";
+import Marketing from "./pages/marketing/marketing.jsx"
 import { useEffect } from "react";
 
 function HomeRedirect() {
@@ -39,6 +40,7 @@ const router = createBrowserRouter(
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/coupons" element={<Coupons />} />
       <Route path="/inventory" element={<Inventory />} />
+      <Route path="/marketing" element={<Marketing />} />
     </Route>
   )
 );

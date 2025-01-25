@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { Search, MoreVertical, Plus } from "lucide-react";
 
 const InventoryManagement = () => {
-  const [view, setView] = useState("list"); // 'list' or 'manage'
-
-  const sampleData = [
+  const [view, setView] = useState("list");
+  const [products, setProducts] = useState([
     {
       id: "#789034",
       name: "Rani Pink Silk Saree",
@@ -20,9 +19,39 @@ const InventoryManagement = () => {
       status: "Out of Stock",
       count: 0,
       vendor: "-------",
-    },
-    // Add more sample data as needed
-  ];
+    }
+  ]);
+
+  const [newProduct, setNewProduct] = useState({
+    name: "",
+    quantity: 0,
+    status: "In Stock",
+    category: "Saree",
+    vendor: ""
+  });
+
+  const handleAddProduct = () => {
+    const newProductEntry = {
+      id: `#${Math.floor(100000 + Math.random() * 900000)}`,
+      name: newProduct.name,
+      category: newProduct.category,
+      status: newProduct.status,
+      count: newProduct.quantity,
+      vendor: newProduct.vendor
+    };
+
+    setProducts([...products, newProductEntry]);
+    setView("list");
+    
+    // Reset new product form
+    setNewProduct({
+      name: "",
+      quantity: 0,
+      status: "In Stock",
+      category: "Saree",
+      vendor: ""
+    });
+  };
 
   const ListViewComponent = () => (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -70,7 +99,7 @@ const InventoryManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {sampleData.map((item, index) => (
+              {products.map((item, index) => (
                 <tr key={index} className="border-b">
                   <td className="p-4">
                     <input type="checkbox" />
@@ -111,7 +140,7 @@ const InventoryManagement = () => {
         </div>
 
         <div className="p-4 flex items-center justify-between">
-          <div>Showing 1 to 10 of 100 entries</div>
+          <div>Showing 1 to {products.length} of {products.length} entries</div>
           <div className="flex gap-2">
             <button className="px-3 py-1 border rounded disabled:opacity-50">
               Previous
@@ -119,9 +148,6 @@ const InventoryManagement = () => {
             <button className="px-3 py-1 border rounded bg-purple-600 text-white">
               1
             </button>
-            <button className="px-3 py-1 border rounded">2</button>
-            <button className="px-3 py-1 border rounded">3</button>
-            <button className="px-3 py-1 border rounded">4</button>
             <button className="px-3 py-1 border rounded">Next</button>
           </div>
         </div>
@@ -141,6 +167,8 @@ const InventoryManagement = () => {
             <label className="block mb-1">Enter Product Name</label>
             <input
               type="text"
+              value={newProduct.name}
+              onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
               className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
@@ -148,19 +176,37 @@ const InventoryManagement = () => {
           <div>
             <label className="block mb-1">Enter quantity to add</label>
             <div className="flex border rounded">
-              <button className="px-4 py-2 hover:bg-gray-100">-</button>
+              <button 
+                onClick={() => setNewProduct({...newProduct, quantity: Math.max(0, newProduct.quantity - 1)})}
+                className="px-4 py-2 hover:bg-gray-100"
+              >
+                -
+              </button>
               <input
                 type="text"
-                value="0"
+                value={newProduct.quantity}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 0;
+                  setNewProduct({...newProduct, quantity: value});
+                }}
                 className="flex-1 text-center focus:outline-none"
               />
-              <button className="px-4 py-2 hover:bg-gray-100">+</button>
+              <button 
+                onClick={() => setNewProduct({...newProduct, quantity: newProduct.quantity + 1})}
+                className="px-4 py-2 hover:bg-gray-100"
+              >
+                +
+              </button>
             </div>
           </div>
 
           <div>
             <label className="block mb-1">Select Status</label>
-            <select className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <select 
+              value={newProduct.status}
+              onChange={(e) => setNewProduct({...newProduct, status: e.target.value})}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
               <option>In Stock</option>
               <option>Out of Stock</option>
             </select>
@@ -168,7 +214,11 @@ const InventoryManagement = () => {
 
           <div>
             <label className="block mb-1">Select product Category</label>
-            <select className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <select 
+              value={newProduct.category}
+              onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
               <option>Saree</option>
               <option>Other</option>
             </select>
@@ -178,11 +228,16 @@ const InventoryManagement = () => {
             <label className="block mb-1">Enter vendor name</label>
             <input
               type="text"
+              value={newProduct.vendor}
+              onChange={(e) => setNewProduct({...newProduct, vendor: e.target.value})}
               className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
 
-          <button className="w-full py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+          <button 
+            onClick={handleAddProduct}
+            className="w-full py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+          >
             Submit
           </button>
         </div>
