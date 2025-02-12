@@ -1,12 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Upload, X, GripVertical } from "lucide-react";
+import { productService } from "../../../services/productService";
+import { categoryService } from "../../../services/categoryService";
+import { API_BASE_URL } from "../../../config/api";
+import { variantService } from "../../../services/variantService";
+import VariantPopup from "./VariantPopup";
+import PropTypes from "prop-types";
 
 const AddProduct = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     productName: "",
     productCode: "",
-    category: "Women",
-    variant: "",
+    categoryId: "",
+    categoryName: "",
+    variantName: "",
     description: "",
     actualPrice: "",
     sellingPrice: "",
@@ -17,10 +24,10 @@ const AddProduct = ({ onSubmit, onCancel }) => {
     images: [],
     tags: [],
     stock: "",
-    availability: "in-stock",
-    sareeSize: "5.5",
-    blouseSize: "0.80",
-    materialCare: [],
+    availability: true,
+    sareeSize: 5.5,
+    blouseSize: 0.8,
+    materialAndCare: "",
   });
 
   const [selectedImage, setSelectedImage] = useState(null);
@@ -29,12 +36,59 @@ const AddProduct = ({ onSubmit, onCancel }) => {
   const [materialCare, setMaterialCare] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Add new state for categories
+  const [categories, setCategories] = useState([]);
+
+  // Add new state for variants and popup
+  const [variants, setVariants] = useState([]);
+  const [showVariantPopup, setShowVariantPopup] = useState(false);
+
+  // Fetch categories when component mounts
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const data = await categoryService.getAllCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+      // Optionally show an error message to the user
+    }
+  };
+
+  // Add useEffect to fetch variants
+  useEffect(() => {
+    fetchVariants();
+  }, []);
+
+  const fetchVariants = async () => {
+    try {
+      const data = await variantService.getAllVariants();
+      setVariants(data);
+    } catch (error) {
+      console.error("Failed to fetch variants:", error);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      if (name === "category") {
+        // When category changes, update both categoryId and categoryName
+        const selectedCategory = categories.find((cat) => cat._id === value);
+        return {
+          ...prev,
+          categoryId: value,
+          categoryName: selectedCategory ? selectedCategory.categoryName : "",
+        };
+      }
+      return {
+        ...prev,
+        [name]: value,
+      };
+    });
 
     if (isPriceSame && name === "actualPrice") {
       setFormData((prev) => ({
@@ -62,21 +116,21 @@ const AddProduct = ({ onSubmit, onCancel }) => {
   };
 
   const handleDragStart = (e, index) => {
-    e.dataTransfer.setData('text/plain', index);
-    e.target.classList.add('opacity-50');
+    e.dataTransfer.setData("text/plain", index);
+    e.target.classList.add("opacity-50");
   };
 
   const handleDragEnd = (e) => {
-    e.target.classList.remove('opacity-50');
+    e.target.classList.remove("opacity-50");
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    e.target.closest('.image-container')?.classList.add('border-purple-500');
+    e.target.closest(".image-container")?.classList.add("border-purple-500");
   };
 
   const handleDragLeave = (e) => {
-    e.target.closest('.image-container')?.classList.remove('border-purple-500');
+    e.target.closest(".image-container")?.classList.remove("border-purple-500");
   };
 
   const handleImageDrop = (e) => {
@@ -100,21 +154,21 @@ const AddProduct = ({ onSubmit, onCancel }) => {
 
   const handleDrop = (e, dropIndex) => {
     e.preventDefault();
-    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    const dragIndex = parseInt(e.dataTransfer.getData("text/plain"));
     if (dragIndex === dropIndex) return;
 
-    setFormData(prev => {
+    setFormData((prev) => {
       const newImages = [...prev.images];
       const draggedImage = newImages[dragIndex];
       newImages.splice(dragIndex, 1);
       newImages.splice(dropIndex, 0, draggedImage);
       return {
         ...prev,
-        images: newImages
+        images: newImages,
       };
     });
 
-    e.target.closest('.image-container')?.classList.remove('border-purple-500');
+    e.target.closest(".image-container")?.classList.remove("border-purple-500");
   };
 
   const handleAddTag = (tag) => {
@@ -137,30 +191,90 @@ const AddProduct = ({ onSubmit, onCancel }) => {
 
   const handleAddMaterialCare = (care) => {
     if (!materialCare.includes(care)) {
-      setMaterialCare([...materialCare, care]);
+      const updatedMaterialCare = [...materialCare, care];
+      setMaterialCare(updatedMaterialCare);
       setFormData((prev) => ({
         ...prev,
-        materialCare: [...prev.materialCare, care],
+        materialAndCare: updatedMaterialCare.join(", "),
       }));
     }
   };
 
   const handleRemoveMaterialCare = (careToRemove) => {
-    setMaterialCare(materialCare.filter((care) => care !== careToRemove));
+    const updatedMaterialCare = materialCare.filter(
+      (care) => care !== careToRemove
+    );
+    setMaterialCare(updatedMaterialCare);
     setFormData((prev) => ({
       ...prev,
-      materialCare: prev.materialCare.filter((care) => care !== careToRemove),
+      materialAndCare: updatedMaterialCare.join(", "),
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleAddVariant = async (variantData) => {
+    try {
+      const newVariant = await variantService.addVariant(variantData);
+      setVariants([...variants, newVariant]);
+    } catch (error) {
+      console.error("Failed to add variant:", error);
+      throw error;
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    try {
+      // Create a copy of formData without images
+      const { images, ...productDataToSubmit } = formData;
+
+      // Convert any empty strings to appropriate types
+      const dataToSubmit = {
+        ...productDataToSubmit,
+        tax: productDataToSubmit.tax ? Number(productDataToSubmit.tax) : 0,
+        stock: productDataToSubmit.stock ? Number(productDataToSubmit.stock) : 0,
+        actualPrice: productDataToSubmit.actualPrice ? Number(productDataToSubmit.actualPrice) : 0,
+        sellingPrice: productDataToSubmit.sellingPrice ? Number(productDataToSubmit.sellingPrice) : 0,
+        sareeSize: productDataToSubmit.sareeSize ? Number(productDataToSubmit.sareeSize) : 5.5,
+        blouseSize: productDataToSubmit.blouseSize ? Number(productDataToSubmit.blouseSize) : 0.8,
+        availability: Boolean(productDataToSubmit.availability),
+        materialAndCare: Array.isArray(productDataToSubmit.materialAndCare)
+          ? productDataToSubmit.materialAndCare.join(", ")
+          : "",
+        tags: Array.isArray(productDataToSubmit.tags) ? productDataToSubmit.tags : [],
+      };
+
+      console.log("Submitting product data:", dataToSubmit);
+
+      const response = await productService.addProduct(dataToSubmit);
+      console.log("Server response:", response);
+      
+      if (typeof onSubmit === 'function') {
+        onSubmit(response);
+      }
+    } catch (error) {
+      console.error("Failed to add product:", error);
+      alert(error.message || "Failed to add product. Please try again.");
+    }
+  };
+
+  const handleCancel = () => {
+    // Call the onCancel prop function to return to product management page
+    if (typeof onCancel === 'function') {
+      onCancel();
+    }
   };
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-semibold mb-6">Add Product</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">Add Product</h1>
+        <button
+          onClick={handleCancel}
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+        >
+          <X className="w-5 h-5 text-gray-500" />
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-2 gap-6">
@@ -196,13 +310,16 @@ const AddProduct = ({ onSubmit, onCancel }) => {
               <label className="block text-sm font-medium mb-1">Category</label>
               <select
                 name="category"
-                value={formData.category}
+                value={formData.categoryId}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded-md"
               >
-                <option value="Women">Women</option>
-                <option value="Men">Men</option>
-                <option value="Kids">Kids</option>
+                <option value="">Select Category</option>
+                {categories.map((category) => (
+                  <option key={category._id} value={category._id}>
+                    {category.categoryName}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -210,16 +327,23 @@ const AddProduct = ({ onSubmit, onCancel }) => {
               <label className="block text-sm font-medium mb-1">Variant</label>
               <div className="flex gap-2">
                 <select
-                  name="variant"
-                  value={formData.variant}
+                  name="variantName"
+                  value={formData.variantName}
                   onChange={handleInputChange}
                   className="w-full p-2 border rounded-md"
                 >
-                  <option value="Kanchipuram Bridal">Kanchipuram Bridal</option>
-                  <option value="Silk">Silk</option>
-                  <option value="Cotton">Cotton</option>
+                  <option value="">Select Variant</option>
+                  {variants.map((variant) => (
+                    <option key={variant._id} value={variant.variantName}>
+                      {variant.variantName}
+                    </option>
+                  ))}
                 </select>
-                <button type="button" className="px-3 py-2 border rounded-md">
+                <button
+                  type="button"
+                  onClick={() => setShowVariantPopup(true)}
+                  className="px-3 py-2 border rounded-md hover:bg-gray-50"
+                >
                   +
                 </button>
               </div>
@@ -262,10 +386,8 @@ const AddProduct = ({ onSubmit, onCancel }) => {
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded-md"
               >
-                <option value="in-stock">In Stock</option>
-                <option value="out-of-stock">Out of Stock</option>
-                <option value="pre-order">Pre-Order</option>
-                <option value="discontinued">Discontinued</option>
+                <option value="true">In Stock</option>
+                <option value="false">Out of Stock</option>
               </select>
             </div>
 
@@ -366,8 +488,8 @@ const AddProduct = ({ onSubmit, onCancel }) => {
               )}
               <div className="grid grid-cols-3 gap-6">
                 {formData.images.map((image, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="image-container relative bg-gray-50 p-2 rounded-lg group transition-all hover:shadow-md border-2 border-transparent"
                     draggable
                     onDragStart={(e) => handleDragStart(e, index)}
@@ -395,17 +517,32 @@ const AddProduct = ({ onSubmit, onCancel }) => {
                   </div>
                 ))}
                 {formData.images.length < 6 && (
-                  <label className={`flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 p-2 cursor-pointer hover:bg-gray-100 transition-all hover:shadow-md ${formData.images.length === 0 ? 'col-span-3 h-40' : 'h-50'}`}>
+                  <label
+                    className={`flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 p-2 cursor-pointer hover:bg-gray-100 transition-all hover:shadow-md ${
+                      formData.images.length === 0 ? "col-span-3 h-40" : "h-50"
+                    }`}
+                  >
                     <div className="text-center">
-                      <Upload className={`mx-auto mb-2 stroke-1 ${formData.images.length === 0 ? 'w-10 h-10 text-gray-400' : 'w-10 h-10 text-gray-400'}`} />
-                      <p className={`font-medium text-gray-600 ${formData.images.length === 0 ? 'text-sm' : 'text-sm'}`}>
+                      <Upload
+                        className={`mx-auto mb-2 stroke-1 ${
+                          formData.images.length === 0
+                            ? "w-10 h-10 text-gray-400"
+                            : "w-10 h-10 text-gray-400"
+                        }`}
+                      />
+                      <p
+                        className={`font-medium text-gray-600 ${
+                          formData.images.length === 0 ? "text-sm" : "text-sm"
+                        }`}
+                      >
                         Upload Product Images
                       </p>
                       <p className="text-xs text-gray-500">
                         Drag & drop or click to browse
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        ({6 - formData.images.length} of 6 remaining) • PNG, JPG • 800x1200px
+                        ({6 - formData.images.length} of 6 remaining) • PNG, JPG
+                        • 800x1200px
                       </p>
                     </div>
                     <input
@@ -549,24 +686,37 @@ const AddProduct = ({ onSubmit, onCancel }) => {
           </div>
         </div>
 
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-4 mt-6">
           <button
             type="button"
-            onClick={onCancel}
-            className="px-4 py-2 border rounded-md hover:bg-gray-50"
+            onClick={handleCancel}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-md shadow-sm hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
-            Update
+            Add Product
           </button>
         </div>
       </form>
+
+      {showVariantPopup && (
+        <VariantPopup
+          onClose={() => setShowVariantPopup(false)}
+          onAdd={handleAddVariant}
+        />
+      )}
     </div>
   );
+};
+
+AddProduct.propTypes = {
+  onSubmit: PropTypes.func,
+  onCancel: PropTypes.func.isRequired,
 };
 
 export default AddProduct;

@@ -1,137 +1,114 @@
-import React, { useState } from 'react';
-import { Edit, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Edit } from 'lucide-react';
+import { baseAPI } from '../../../config/api';
+
+const INITIAL_PERMISSIONS = {
+  productManagement: false,
+  orderManagement: false,
+  categoryManagement: false,
+  couponsManagement: false,
+  inventoryManagement: false,
+  marketingManagement: false,
+  userManagement: false
+};
+
+const INITIAL_USER_STATE = {
+  username: '',
+  email: '',
+  password: '',
+  phoneNumber: '',
+  address: '',
+  permissions: INITIAL_PERMISSIONS
+};
 
 const UserManagement = () => {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: 'Manikandan G',
-      phone: '63687 54210',
-      email: 'manimanila@2gmail.com',
-      location: '08, Raji st, CBE',
-      isActive: true,
-      permissions: {
-        productManagement: false,
-        categoryManagement: true,
-        order: false,
-        customerManagement: true,
-        coupons: false,
-        inventory: true,
-        analytics: true,
-        marketing: true
-      }
-    }
-  ]);
-  
+  const [users, setUsers] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [newUser, setNewUser] = useState({
-    username: '',
-    email: '',
-    password: '',
-    phone: '',
-    address: '',
-    permissions: {
-      productManagement: false,
-      categoryManagement: false,
-      order: false,
-      coupons: false,
-      inventory: false,
-      marketing: false,
-      analytics: false
+  const [newUser, setNewUser] = useState(INITIAL_USER_STATE);
+  const [editUser, setEditUser] = useState({ ...INITIAL_USER_STATE, password: undefined });
+
+  const fetchUsers = async () => {
+    try {
+      const response = await baseAPI.get('/api/admin/getallusers');
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      // You might want to show an error toast or message here
     }
-  });
+  };
 
-  const [editUser, setEditUser] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    location: '',
-    permissions: {
-      productManagement: false,
-      categoryManagement: false,
-      order: false,
-      coupons: false,
-      inventory: false,
-      marketing: false,
-      analytics: false
-    }
-  });
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
-  const handleCreateUser = () => {
-    const newUserData = {
-      id: users.length + 1,
-      name: newUser.username,
-      email: newUser.email,
-      phone: newUser.phone,
-      location: newUser.address,
-      isActive: true,
-      permissions: newUser.permissions
-    };
+  const handleCreateUser = async () => {
+    try {
+      const userData = {
+        username: newUser.username,
+        email: newUser.email,
+        password: newUser.password,
+        phoneNumber: newUser.phoneNumber,
+        address: newUser.address,
+        permissions: newUser.permissions
+      };
 
-    setUsers([...users, newUserData]);
-    setIsCreateModalOpen(false);
-    setNewUser({
-      username: '',
-      email: '',
-      password: '',
-      phone: '',
-      address: '',
-      permissions: {
-        productManagement: false,
-        categoryManagement: false,
-        order: false,
-        coupons: false,
-        inventory: false,
-        marketing: false,
-        analytics: false
+      const response = await baseAPI.post('/api/admin/add', userData);
+
+      if (response.data.message === 'Admin user created successfully') {
+        fetchUsers();
+        setIsCreateModalOpen(false);
+        setNewUser(INITIAL_USER_STATE);
+        // Add success notification here if needed
       }
-    });
+    } catch (error) {
+      console.error('Error creating user:', error.response?.data?.message || error.message);
+      // Add error notification here if needed
+    }
   };
 
   const handleEdit = (user) => {
-    setEditingId(user.id);
+    setEditingId(user._id);
     setEditUser({
-      name: user.name,
+      username: user.username,
       email: user.email,
-      phone: user.phone,
-      location: user.location,
-      permissions: { ...user.permissions }
+      phoneNumber: user.phoneNumber,
+      address: user.address,
+      permissions: { ...user.permissions },
+      isActive: user.isActive
     });
   };
 
-  const handleSaveEdit = (id) => {
-    setUsers(users.map(user => 
-      user.id === id ? {
-        ...user,
-        name: editUser.name,
-        email: editUser.email,
-        phone: editUser.phone,
-        location: editUser.location,
-        permissions: editUser.permissions
-      } : user
-    ));
-    setEditingId(null);
+  const handleSaveEdit = async (id) => {
+    try {
+      const response = await baseAPI.put(`/api/admin/edit/${id}`, {
+        username: editUser.username,
+        address: editUser.address,
+        permissions: editUser.permissions,
+        isActive: editUser.isActive
+      });
+
+      if (response.data.message === 'Admin user updated successfully') {
+        fetchUsers();
+        setEditingId(null);
+        // Add success notification here if needed
+      }
+    } catch (error) {
+      console.error('Error updating user:', error.response?.data?.message || error.message);
+      // Add error notification here if needed
+    }
   };
 
-  const handleNewUserChange = (e) => {
+  const handleInputChange = (setter) => (e) => {
     const { name, value } = e.target;
-    setNewUser(prev => ({
+    setter((prev) => ({
       ...prev,
       [name]: value
     }));
   };
 
-  const handleEditUserChange = (e) => {
-    const { name, value } = e.target;
-    setEditUser(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handlePermissionChange = (permission) => {
-    setNewUser(prev => ({
+  const handlePermissionChange = (setter) => (permission) => {
+    setter(prev => ({
       ...prev,
       permissions: {
         ...prev.permissions,
@@ -140,193 +117,112 @@ const UserManagement = () => {
     }));
   };
 
-  const handleEditPermissionChange = (permission) => {
-    setEditUser(prev => ({
-      ...prev,
-      permissions: {
-        ...prev.permissions,
-        [permission]: !prev.permissions[permission]
-      }
-    }));
-  };
-
-  const UserCard = ({ user }) => (
-    <div className="bg-white rounded-lg border border-blue-200 p-8 w-full">
-      <div className="border-b border-dotted border-gray-200 pb-6">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center gap-3">
-            <div className={`w-5 h-5 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-base font-medium">
-              {user.isActive ? 'User Active' : 'User Inactive'}
-            </span>
-          </div>
-          <button 
-            onClick={() => handleEdit(user)}
-            className="p-3 rounded-full bg-purple-100 hover:bg-purple-200"
-          >
-            <Edit className="w-5 h-5 text-purple-600" />
-          </button>
-        </div>
-
-        <div className="space-y-4 mt-6">
-          {editingId === user.id ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">👤</span>
-                <input
-                  type="text"
-                  name="name"
-                  value={editUser.name}
-                  onChange={handleEditUserChange}
-                  className="flex-1 border-2 border-blue-200 rounded-lg p-2 text-base focus:outline-none focus:border-purple-400"
-                />
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xl">📞</span>
-                <input
-                  type="text"
-                  name="phone"
-                  value={editUser.phone}
-                  onChange={handleEditUserChange}
-                  className="flex-1 border-2 border-blue-200 rounded-lg p-2 text-base focus:outline-none focus:border-purple-400"
-                />
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xl">✉️</span>
-                <input
-                  type="email"
-                  name="email"
-                  value={editUser.email}
-                  onChange={handleEditUserChange}
-                  className="flex-1 border-2 border-blue-200 rounded-lg p-2 text-base focus:outline-none focus:border-purple-400"
-                />
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xl">📍</span>
-                <input
-                  type="text"
-                  name="location"
-                  value={editUser.location}
-                  onChange={handleEditUserChange}
-                  className="flex-1 border-2 border-blue-200 rounded-lg p-2 text-base focus:outline-none focus:border-purple-400"
-                />
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center gap-4">
-                <span className="text-xl text-gray-500">👤</span>
-                <span className="text-base">{user.name}</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-xl text-gray-500">📞</span>
-                <span className="text-base">{user.phone}</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-xl text-gray-500">✉️</span>
-                <span className="text-base">{user.email}</span>
-              </div>
-              {user.location && (
-                <div className="flex items-center gap-4">
-                  <span className="text-xl text-gray-500">📍</span>
-                  <span className="text-base">{user.location}</span>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-6 pt-6">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={editingId === user.id ? editUser.permissions.productManagement : user.permissions.productManagement}
-              onChange={() => editingId === user.id && handleEditPermissionChange('productManagement')}
-              className="w-4 h-4 rounded border-gray-300"
-            />
-            <span className="text-base">Product Management</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={editingId === user.id ? editUser.permissions.categoryManagement : user.permissions.categoryManagement}
-              onChange={() => editingId === user.id && handleEditPermissionChange('categoryManagement')}
-              className="w-4 h-4 rounded border-gray-300"
-            />
-            <span className="text-base">Category Management</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={editingId === user.id ? editUser.permissions.order : user.permissions.order}
-              onChange={() => editingId === user.id && handleEditPermissionChange('order')}
-              className="w-4 h-4 rounded border-gray-300"
-            />
-            <span className="text-base">Order</span>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={editingId === user.id ? editUser.permissions.coupons : user.permissions.coupons}
-              onChange={() => editingId === user.id && handleEditPermissionChange('coupons')}
-              className="w-4 h-4 rounded border-gray-300"
-            />
-            <span className="text-base">Coupons</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={editingId === user.id ? editUser.permissions.inventory : user.permissions.inventory}
-              onChange={() => editingId === user.id && handleEditPermissionChange('inventory')}
-              className="w-4 h-4 rounded border-gray-300"
-            />
-            <span className="text-base">Inventory</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={editingId === user.id ? editUser.permissions.marketing : user.permissions.marketing}
-              onChange={() => editingId === user.id && handleEditPermissionChange('marketing')}
-              className="w-4 h-4 rounded border-gray-300"
-            />
-            <span className="text-base">Marketing</span>
-          </div>
-        </div>
-        <div>
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={editingId === user.id ? editUser.permissions.analytics : user.permissions.analytics}
-              onChange={() => editingId === user.id && handleEditPermissionChange('analytics')}
-              className="w-4 h-4 rounded border-gray-300"
-            />
-            <span className="text-base">Analytics</span>
-          </div>
-        </div>
-      </div>
-
-      {editingId === user.id && (
-        <div className="flex justify-end gap-3 mt-6">
-          <button
-            onClick={() => setEditingId(null)}
-            className="px-6 py-2 border-2 border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-base"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => handleSaveEdit(user.id)}
-            className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-base"
-          >
-            Save
-          </button>
-        </div>
-      )}
+  const PermissionCheckbox = ({ name, label, checked, onChange, disabled = false }) => (
+    <div className="flex items-center gap-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        className="w-4 h-4 rounded border-gray-300"
+      />
+      <span className="text-base">{label}</span>
     </div>
   );
+
+  const UserInfoField = ({ icon, value }) => (
+    <div className="flex items-center gap-4">
+      <span className="text-xl text-gray-500">{icon}</span>
+      <span className="text-base">{value}</span>
+    </div>
+  );
+
+  const UserCard = ({ user }) => {
+    const isEditing = editingId === user._id;
+    const currentUser = isEditing ? editUser : user;
+
+    const renderInput = (field, icon) => (
+      <div key={field} className="flex items-center gap-3">
+        <span className="text-xl">{icon}</span>
+        <input
+          type={field === 'email' ? 'email' : 'text'}
+          name={field}
+          value={currentUser[field] || ''}
+          onChange={handleInputChange(setEditUser)}
+          className="flex-1 border-2 border-blue-200 rounded-lg p-2 text-base focus:outline-none focus:border-purple-400"
+        />
+      </div>
+    );
+
+    return (
+      <div className="bg-white rounded-lg border border-blue-200 p-8 w-full">
+        <div className="border-b border-dotted border-gray-200 pb-6">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-3">
+              <div className={`w-5 h-5 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span className="text-base font-medium">
+                {user.isActive ? 'User Active' : 'User Inactive'}
+              </span>
+            </div>
+            <button 
+              onClick={() => handleEdit(user)}
+              className="p-3 rounded-full bg-purple-100 hover:bg-purple-200"
+            >
+              <Edit className="w-5 h-5 text-purple-600" />
+            </button>
+          </div>
+
+          <div className="space-y-4 mt-6">
+            {isEditing ? (
+              <div className="space-y-4">
+                {renderInput('username', '👤')}
+                {renderInput('phoneNumber', '📞')}
+                {renderInput('email', '✉️')}
+                {renderInput('address', '📍')}
+              </div>
+            ) : (
+              <>
+                <UserInfoField icon="👤" value={user.username} />
+                <UserInfoField icon="📞" value={user.phoneNumber} />
+                <UserInfoField icon="✉️" value={user.email} />
+                {user.address && <UserInfoField icon="📍" value={user.address} />}
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 pt-6">
+          {Object.entries(INITIAL_PERMISSIONS).map(([key, _]) => (
+            <PermissionCheckbox
+              key={key}
+              name={key}
+              label={key.replace('Management', ' Management')}
+              checked={currentUser.permissions[key]}
+              onChange={() => isEditing && handlePermissionChange(setEditUser)(key)}
+              disabled={!isEditing}
+            />
+          ))}
+        </div>
+
+        {isEditing && (
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              onClick={() => setEditingId(null)}
+              className="px-6 py-2 border-2 border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-base"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleSaveEdit(user._id)}
+              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-base"
+            >
+              Save
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const CreateUserModal = () => (
     <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${isCreateModalOpen ? '' : 'hidden'}`}>
@@ -351,7 +247,7 @@ const UserManagement = () => {
                   type="text"
                   name="username"
                   value={newUser.username}
-                  onChange={handleNewUserChange}
+                  onChange={handleInputChange(setNewUser)}
                   className="flex-1 outline-none text-base"
                   placeholder="Username"
                 />
@@ -366,7 +262,7 @@ const UserManagement = () => {
                   type="email"
                   name="email"
                   value={newUser.email}
-                  onChange={handleNewUserChange}
+                  onChange={handleInputChange(setNewUser)}
                   className="flex-1 outline-none text-base"
                   placeholder="Email"
                 />
@@ -381,7 +277,7 @@ const UserManagement = () => {
                   type="password"
                   name="password"
                   value={newUser.password}
-                  onChange={handleNewUserChange}
+                  onChange={handleInputChange(setNewUser)}
                   className="flex-1 outline-none text-base"
                   placeholder="Password"
                 />
@@ -394,9 +290,9 @@ const UserManagement = () => {
                 <span className="text-xl">📞</span>
                 <input
                   type="text"
-                  name="phone"
-                  value={newUser.phone}
-                  onChange={handleNewUserChange}
+                  name="phoneNumber"
+                  value={newUser.phoneNumber}
+                  onChange={handleInputChange(setNewUser)}
                   className="flex-1 outline-none text-base"
                   placeholder="Phone Number"
                 />
@@ -411,7 +307,7 @@ const UserManagement = () => {
                   type="text"
                   name="address"
                   value={newUser.address}
-                  onChange={handleNewUserChange}
+                  onChange={handleInputChange(setNewUser)}
                   className="flex-1 outline-none text-sm"
                   placeholder="Address"
                 />
@@ -424,7 +320,7 @@ const UserManagement = () => {
               <input
                 type="checkbox"
                 checked={newUser.permissions.productManagement}
-                onChange={() => handlePermissionChange('productManagement')}
+                onChange={() => handlePermissionChange(setNewUser)('productManagement')}
                 className="rounded border-gray-300"
               />
               <span className="text-sm">Product Management</span>
@@ -433,7 +329,7 @@ const UserManagement = () => {
               <input
                 type="checkbox"
                 checked={newUser.permissions.categoryManagement}
-                onChange={() => handlePermissionChange('categoryManagement')}
+                onChange={() => handlePermissionChange(setNewUser)('categoryManagement')}
                 className="rounded border-gray-300"
               />
               <span className="text-sm">Category Management</span>
@@ -441,47 +337,38 @@ const UserManagement = () => {
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={newUser.permissions.order}
-                onChange={() => handlePermissionChange('order')}
+                checked={newUser.permissions.orderManagement}
+                onChange={() => handlePermissionChange(setNewUser)('orderManagement')}
                 className="rounded border-gray-300"
               />
-              <span className="text-sm">Order</span>
+              <span className="text-sm">Order Management</span>
             </div>
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={newUser.permissions.coupons}
-                onChange={() => handlePermissionChange('coupons')}
+                checked={newUser.permissions.couponsManagement}
+                onChange={() => handlePermissionChange(setNewUser)('couponsManagement')}
                 className="rounded border-gray-300"
               />
-              <span className="text-sm">Coupons</span>
+              <span className="text-sm">Coupons Management</span>
             </div>
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={newUser.permissions.inventory}
-                onChange={() => handlePermissionChange('inventory')}
+                checked={newUser.permissions.inventoryManagement}
+                onChange={() => handlePermissionChange(setNewUser)('inventoryManagement')}
                 className="rounded border-gray-300"
               />
-              <span className="text-sm">Inventory</span>
+              <span className="text-sm">Inventory Management</span>
             </div>
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={newUser.permissions.marketing}
-                onChange={() => handlePermissionChange('marketing')}
+                checked={newUser.permissions.marketingManagement}
+                onChange={() => handlePermissionChange(setNewUser)('marketingManagement')}
                 className="rounded border-gray-300"
               />
-              <span className="text-sm">Marketing</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={newUser.permissions.analytics}
-                onChange={() => handlePermissionChange('analytics')}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm">Analytics</span>
+              <span className="text-sm">Marketing Management</span>
             </div>
           </div>
         </div>
@@ -518,7 +405,7 @@ const UserManagement = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {users.map(user => (
-          <UserCard key={user.id} user={user} />
+          <UserCard key={user._id} user={user} />
         ))}
       </div>
 

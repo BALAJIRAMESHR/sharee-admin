@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { MoreVertical, Plus, Edit, Trash2 } from "lucide-react";
 import AddCategoryModal from "./AddCategoryModal";
-import { API_BASE_URL } from "../../../config/api";
+import { baseAPI } from "../../../config/api";
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -20,50 +20,29 @@ const CategoryManagement = () => {
   const fetchCategories = async () => {
     try {
       console.log("Fetching categories...");
-      const response = await fetch(`${API_BASE_URL}/categories/allcategory`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("Categories fetched:", data);
-      setCategories(data);
+      const response = await baseAPI.get('/categories/allcategory');
+      console.log("Categories fetched:", response.data);
+      setCategories(response.data);
     } catch (error) {
       console.error("Error fetching categories:", error);
       alert("Failed to load categories. Please try again later.");
     }
   };
 
-  const handleAddCategory = async (categoryName, image, categoryType) => {
+  const handleAddCategory = async (categoryName, imageUrl, categoryType) => {
     try {
-      const imageName = image.name;
-
-      const response = await fetch(`${API_BASE_URL}/categories/addcategory`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          categoryName,
-          categoryType,
-          categotyImage: imageName,
-        }),
+      const response = await baseAPI.post('/categories/addcategory', {
+        categoryName,
+        categoryType,
+        categotyImage: imageUrl,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to add category");
-      }
-
-      const result = await response.json();
-      console.log("Success:", result);
-
+      console.log("Success:", response.data);
       await fetchCategories();
       setShowAddModal(false);
     } catch (error) {
       console.error("Error adding category:", error);
-      alert(`Failed to add category: ${error.message}`);
+      alert(`Failed to add category: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -74,16 +53,7 @@ const CategoryManagement = () => {
 
   const confirmDelete = async () => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/categories/deletecategory/${categoryToDelete}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete category");
-      }
+      const response = await baseAPI.delete(`/categories/deletecategory/${categoryToDelete}`);
 
       await fetchCategories();
       setShowDeleteModal(false);
@@ -98,29 +68,28 @@ const CategoryManagement = () => {
   const handleSaveEdit = async (newImage, categoryType) => {
     if (newCategoryName.trim()) {
       try {
-        const imageName = newImage
-          ? newImage.name
-          : editingCategory.categotyImage.split("/").pop();
+        let imageUrl = editingCategory.categotyImage;
 
-        const response = await fetch(
-          `${API_BASE_URL}/categories/editcategory/${editingCategory._id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              categoryName: newCategoryName,
-              categoryType: categoryType,
-              categotyImage: imageName,
-            }),
+        // Upload new image if one was selected
+        if (newImage) {
+          const formData = new FormData();
+          formData.append('file', newImage);
+          
+          const imageUploadResponse = await baseAPI.post('/upload', formData);
+
+          if (!imageUploadResponse.data || !imageUploadResponse.data.filePath) {
+            throw new Error("Invalid response from image upload");
           }
-        );
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to update category");
+          imageUrl = imageUploadResponse.data.filePath;
         }
+
+        // Update category with new data
+        const response = await baseAPI.put(`/categories/editcategory/${editingCategory._id}`, {
+          categoryName: newCategoryName,
+          categoryType: categoryType,
+          categotyImage: imageUrl,
+        });
 
         await fetchCategories();
         setIsEditing(false);
@@ -128,7 +97,7 @@ const CategoryManagement = () => {
         setNewCategoryName("");
       } catch (error) {
         console.error("Error updating category:", error);
-        alert(error.message || "Failed to update category. Please try again.");
+        alert(`Error: ${error.message}`);
       }
     }
   };
