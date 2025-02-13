@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import { API_IMAGE_URL, API_BASE_URL } from "../../../config/api";
 import axios from "axios";
-import { imageAPI, baseAPI } from "../../../config/api";
 
 const AddCategoryModal = ({ onClose, onAdd }) => {
   const [categoryName, setCategoryName] = useState("");
@@ -12,21 +10,13 @@ const AddCategoryModal = ({ onClose, onAdd }) => {
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
-      if (!file.type.startsWith("image/")) {
+      if (file.type.startsWith("image/")) {
+        setSelectedImage(file);
+        const imageUrl = URL.createObjectURL(file);
+        setPreviewImage(imageUrl);
+      } else {
         alert("Please select an image file");
-        return;
       }
-      
-      // Validate file size (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert("Image size should be less than 5MB");
-        return;
-      }
-
-      setSelectedImage(file);
-      const imageUrl = URL.createObjectURL(file);
-      setPreviewImage(imageUrl);
     }
   };
 
@@ -60,32 +50,22 @@ const AddCategoryModal = ({ onClose, onAdd }) => {
     }
 
     try {
-      // Validate file size before upload (e.g., max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (selectedImage.size > maxSize) {
-        throw new Error("Image size should be less than 5MB");
-      }
-
       // First upload the image
       const formData = new FormData();
       formData.append("file", selectedImage);
 
-      // Log the request details
-      console.log('Uploading image...', {
-        url: `${API_IMAGE_URL}/upload`,
-        fileSize: selectedImage.size,
-        fileName: selectedImage.name,
-        fileType: selectedImage.type
+      const imageUploadResponse = await axios({
+        method: "post",
+        url: "/api/upload",
+        data: formData,
+        headers: {
+          Authorization: "QuindlTokPATFileUpload2025#$$TerOiu$",
+          "Content-Type": "multipart/form-data",
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
       });
 
-      const imageUploadResponse = await imageAPI.post("/upload", formData, {
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          console.log('Upload Progress:', percentCompleted + '%');
-        }
-      });
-
-      console.log('Image upload response:', imageUploadResponse);
       if (!imageUploadResponse.data || !imageUploadResponse.data.filePath) {
         throw new Error("Invalid response from image upload");
       }
@@ -93,39 +73,29 @@ const AddCategoryModal = ({ onClose, onAdd }) => {
       const imageUrl = imageUploadResponse.data.filePath;
 
       // Then create the category with the image URL
-      const categoryData = {
-        categoryName: categoryName.trim(),
-        categoryType,
-        categotyImage: imageUrl,
-      };
-
-      console.log('Creating category with data:', categoryData);
-      const categoryResponse = await baseAPI.post("/categories/addcategory", categoryData);
-
-      if (categoryResponse.data) {
-        await onAdd(categoryName, imageUrl, categoryType);
-        onClose();
-      }
+      await onAdd(categoryName, imageUrl, categoryType);
+      onClose();
     } catch (error) {
       console.error("Error submitting category:", error);
-      let errorMessage = "An unexpected error occurred";
-      
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.message) {
-        errorMessage = error.message;
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error("Response data:", error.response.data);
+        console.error("Response status:", error.response.status);
+        alert(
+          `Failed to add category: ${
+            error.response.data.message || "Unknown error"
+          }`
+        );
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error("No response received:", error.request);
+        alert("Failed to connect to the server. Please check your connection.");
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error("Error setting up request:", error.message);
+        alert("Failed to process request. Please try again.");
       }
-      
-      // Log additional error details
-      console.error('Detailed error:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        headers: error.response?.headers,
-        config: error.config
-      });
-      
-      alert(`Failed to add category: ${errorMessage}`);
     }
   };
 

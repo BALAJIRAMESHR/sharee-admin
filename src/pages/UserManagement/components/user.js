@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Edit } from 'lucide-react';
-import { baseAPI } from '../../../config/api';
+import { API_BASE_URL } from '../../../config/api';
 
 const INITIAL_PERMISSIONS = {
   productManagement: false,
@@ -30,7 +30,7 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await baseAPI.get('/api/admin/getallusers');
+      const response = await API_BASE_URL.get('/api/admin/getallusers');
       setUsers(response.data);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -53,7 +53,7 @@ const UserManagement = () => {
         permissions: newUser.permissions
       };
 
-      const response = await baseAPI.post('/api/admin/add', userData);
+      const response = await API_BASE_URL.post('/api/admin/add', userData);
 
       if (response.data.message === 'Admin user created successfully') {
         fetchUsers();
@@ -81,7 +81,7 @@ const UserManagement = () => {
 
   const handleSaveEdit = async (id) => {
     try {
-      const response = await baseAPI.put(`/api/admin/edit/${id}`, {
+      const response = await API_BASE_URL.put(`/api/admin/edit/${id}`, {
         username: editUser.username,
         address: editUser.address,
         permissions: editUser.permissions,
