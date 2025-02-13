@@ -2,11 +2,24 @@ import React, { useState, useEffect } from "react";
 import { MoreVertical, Plus, Edit, Trash2 } from "lucide-react";
 import AddCategoryModal from "./AddCategoryModal";
 import { API_BASE_URL } from "../../../config/api";
-import axios from 'axios';
-import { handleImageError, getImageUrl } from '../../../utils/imageUtils';
+import axios from "axios";
 
 const CategoryManagement = () => {
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState([
+    // Add some mock data
+    {
+      _id: '1',
+      categoryName: 'Sample Category 1',
+      categoryType: 'Saree',
+      categotyImage: 'https://via.placeholder.com/150'
+    },
+    {
+      _id: '2',
+      categoryName: 'Sample Category 2',
+      categoryType: 'Others',
+      categotyImage: 'https://via.placeholder.com/150'
+    }
+  ]);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -15,188 +28,47 @@ const CategoryManagement = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/categories/allcategory`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setCategories(data);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      alert("Failed to load categories. Please try again later.");
-    }
-  };
-
-  const uploadImage = async (imageFile) => {
-    try {
-      console.log('Starting image upload...', imageFile);
-      
-      // Validate file
-      if (!imageFile || !imageFile.type.startsWith('image/')) {
-        throw new Error('Please select a valid image file');
-      }
-
-      const formData = new FormData();
-      formData.append('file', imageFile);
-
-      // Log the request details
-      console.log('Uploading to:', 'http://103.120.176.156:5191/upload');
-      console.log('File being uploaded:', imageFile.name, imageFile.type);
-
-      const response = await axios.post('http://103.120.176.156:5191/upload', formData, {
-        headers: {
-          'Authorization': 'QuindlTokPATFileUpload2025#$$TerOiu$',
-          'Content-Type': 'multipart/form-data',
-          'Accept': 'application/json',
-        },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          console.log('Upload progress:', percentCompleted, '%');
-        }
-      });
-
-      console.log('Upload response:', response.data);
-
-      if (!response.data || !response.data.filePath) {
-        throw new Error('Invalid response from upload server');
-      }
-
-      return response.data.filePath;
-    } catch (error) {
-      console.error('Detailed upload error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
-      
-      // More specific error messages based on the error type
-      if (error.response?.status === 401) {
-        throw new Error('Unauthorized: Invalid or missing authorization token');
-      } else if (error.response?.status === 413) {
-        throw new Error('File is too large');
-      } else if (error.code === 'ECONNREFUSED') {
-        throw new Error('Unable to connect to upload server');
-      }
-      
-      throw new Error(`Failed to upload image: ${error.message}`);
-    }
-  };
-
   const handleAddCategory = async (categoryName, image, categoryType) => {
-    try {
-      console.log('Starting category addition with:', { categoryName, categoryType });
-      
-      if (!image) {
-        throw new Error('Please select an image');
-      }
-
-      // Upload image first
-      console.log('Uploading image...');
-      const imageUrl = await uploadImage(image);
-      console.log('Image uploaded successfully:', imageUrl);
-
-      // Create category
-      console.log('Creating category with image URL:', imageUrl);
-      const response = await fetch(`${API_BASE_URL}/categories/addcategory`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          categoryName,
-          categoryType,
-          categotyImage: imageUrl,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to add category");
-      }
-
-      const result = await response.json();
-      console.log('Category created successfully:', result);
-
-      await fetchCategories();
-      setShowAddModal(false);
-    } catch (error) {
-      console.error("Detailed error adding category:", error);
-      alert(`Failed to add category: ${error.message}`);
-    }
+    // Mock adding a category
+    const newCategory = {
+      _id: Date.now().toString(),
+      categoryName,
+      categoryType,
+      categotyImage: URL.createObjectURL(image)
+    };
+    setCategories([...categories, newCategory]);
+    setShowAddModal(false);
   };
 
-  const handleDelete = async (categoryId) => {
+  const handleDelete = (categoryId) => {
     setCategoryToDelete(categoryId);
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = async () => {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/categories/deletecategory/${categoryToDelete}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete category");
-      }
-
-      await fetchCategories();
-      setShowDeleteModal(false);
-      setCategoryToDelete(null);
-      setOpenMenuId(null);
-    } catch (error) {
-      console.error("Error deleting category:", error);
-      alert("Failed to delete category. Please try again.");
-    }
+  const confirmDelete = () => {
+    setCategories(categories.filter(cat => cat._id !== categoryToDelete));
+    setShowDeleteModal(false);
+    setCategoryToDelete(null);
+    setOpenMenuId(null);
   };
 
-  const handleSaveEdit = async (newImage, categoryType) => {
+  const handleSaveEdit = (newImage, categoryType) => {
     if (newCategoryName.trim()) {
-      try {
-        let imageUrl = editingCategory.categotyImage;
-        
-        // Upload new image if provided
-        if (newImage) {
-          imageUrl = await uploadImage(newImage);
+      const updatedCategories = categories.map(cat => {
+        if (cat._id === editingCategory._id) {
+          return {
+            ...cat,
+            categoryName: newCategoryName,
+            categoryType,
+            categotyImage: newImage ? URL.createObjectURL(newImage) : cat.categotyImage
+          };
         }
-
-        const response = await fetch(
-          `${API_BASE_URL}/categories/editcategory/${editingCategory._id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              categoryName: newCategoryName,
-              categoryType: categoryType,
-              categotyImage: imageUrl,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to update category");
-        }
-
-        await fetchCategories();
-        setIsEditing(false);
-        setEditingCategory(null);
-        setNewCategoryName("");
-      } catch (error) {
-        console.error("Error updating category:", error);
-        alert(error.message || "Failed to update category. Please try again.");
-      }
+        return cat;
+      });
+      setCategories(updatedCategories);
+      setIsEditing(false);
+      setEditingCategory(null);
+      setNewCategoryName("");
     }
   };
 
@@ -421,10 +293,12 @@ const CategoryManagement = () => {
     // Add authorization header for image requests
     return (
       <img
-        src={getImageUrl(imageUrl)}
+        src={imageUrl}
         alt="Category"
         className="w-full h-full object-cover"
-        onError={handleImageError}
+        onError={(e) => {
+          e.target.src = "/api/placeholder/64/64";
+        }}
       />
     );
   };
