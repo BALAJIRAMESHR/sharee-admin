@@ -6,6 +6,7 @@ import { API_BASE_URL } from "../../../config/api";
 import { variantService } from "../../../services/variantService";
 import VariantPopup from "./VariantPopup";
 import PropTypes from "prop-types";
+import axios from "axios";
 
 const AddProduct = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -221,11 +222,64 @@ const AddProduct = ({ onSubmit, onCancel }) => {
     }
   };
 
+  const base64ToFile = (base64String, fileName) => {
+    const byteString = atob(base64String.split(',')[1]);
+    const mimeString = base64String.split(',')[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    const blob = new Blob([ab], { type: mimeString });
+    return new File([blob], fileName, { type: mimeString });
+  };
+  
+  const uploadImage = async (base64String, fileName) => {
+    const file = base64ToFile(base64String, fileName);
+  
+    const data = new FormData();
+    data.append('file', file);
+  
+    const config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: '/upload', 
+      headers: {
+        'Authorization': 'QuindlTokPATFileUpload2025#$$TerOiu$',
+        'Content-Type': 'multipart/form-data'
+      },
+      data: data
+    };
+  
+    try {
+      const response = await axios.request(config);
+      console.log(response.data);
+      return response.data.filePath;
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  };
+  
+  const uploadImagesAndGetUrls = async (images) => {
+    const urls = [];
+    for (const image of images) {
+      const fileName = `image-${Date.now()}.png`;
+      const url = await uploadImage(image, fileName);
+      if (url) {
+        urls.push(url);
+      }
+    }
+    return urls;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Create a copy of formData without images
       const { images, ...productDataToSubmit } = formData;
+
+      const imageUrls = await uploadImagesAndGetUrls(images);
+      console.log(imageUrls);
 
       // Convert any empty strings to appropriate types
       const dataToSubmit = {
@@ -241,6 +295,7 @@ const AddProduct = ({ onSubmit, onCancel }) => {
           ? productDataToSubmit.materialAndCare.join(", ")
           : "",
         tags: Array.isArray(productDataToSubmit.tags) ? productDataToSubmit.tags : [],
+        images: imageUrls
       };
 
       console.log("Submitting product data:", dataToSubmit);
