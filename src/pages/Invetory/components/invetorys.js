@@ -1,26 +1,91 @@
-import React, { useState } from "react";
-import { Search, MoreVertical, Plus } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Search, MoreVertical, Plus, Edit, Trash2 } from "lucide-react";
+import { API_BASE_URL } from "../../../config/api";
+
+const EditModal = ({ product, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    count: product.count,
+    status: product.status
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    setIsSaving(true);
+    try {
+      await onSave(formData);
+      onClose();
+    } catch (error) {
+      console.error("Failed to save:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-[400px]">
+        <h2 className="text-xl font-semibold mb-4">Edit Inventory</h2>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+            <p className="text-gray-900">{product.name}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <p className="text-gray-900">{product.category}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Count</label>
+            <input
+              type="number"
+              value={formData.count}
+              onChange={(e) => setFormData({ ...formData, count: parseInt(e.target.value) })}
+              className="w-full p-2 border rounded focus:ring-purple-500 focus:border-purple-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              className="w-full p-2 border rounded focus:ring-purple-500 focus:border-purple-500"
+            >
+              <option value="In stock">In Stock</option>
+              <option value="Out of Stock">Out of Stock</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={isSaving}
+            className="px-4 py-2 text-gray-700 border rounded hover:bg-gray-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isSaving}
+            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+          >
+            {isSaving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const InventoryManagement = () => {
   const [view, setView] = useState("list");
-  const [products, setProducts] = useState([
-    {
-      id: "#789034",
-      name: "Rani Pink Silk Saree",
-      category: "Saree",
-      status: "In stock",
-      count: 86,
-      vendor: "Cloud tail",
-    },
-    {
-      id: "#789012",
-      name: "Rani Pink Silk Saree",
-      category: "Saree",
-      status: "Out of Stock",
-      count: 0,
-      vendor: "-------",
-    }
-  ]);
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -29,6 +94,38 @@ const InventoryManagement = () => {
     category: "Saree",
     vendor: ""
   });
+
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [showActionMenu, setShowActionMenu] = useState(null);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${API_BASE_URL}/products/getallproducts`);
+      if (!response.ok) throw new Error('Failed to fetch products');
+      const data = await response.json();
+      
+      const transformedProducts = data.map(product => ({
+        id: product._id,
+        name: product.productName,
+        category: product.categoryName,
+        status: product.stock > 0 ? "In stock" : "Out of Stock",
+        count: product.stock,
+        vendor: product.vendor || "-------"
+      }));
+      
+      setProducts(transformedProducts);
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      setError("Failed to load products");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleAddProduct = () => {
     const newProductEntry = {
@@ -53,6 +150,52 @@ const InventoryManagement = () => {
     });
   };
 
+  const handleEdit = (product) => {
+    setEditingProduct(product);
+    setShowActionMenu(null);
+  };
+
+  const handleSave = async (updatedData) => {
+    try {
+      // Prepare the data for the API
+      const productUpdateData = {
+        stock: updatedData.count,
+        // If status is "In stock", set availability to true, otherwise false
+        availability: updatedData.status === "In stock"
+      };
+
+      // Make API call to update the product
+      const response = await fetch(`${API_BASE_URL}/products/editproduct/${editingProduct.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productUpdateData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update product');
+      }
+
+      // Update local state only after successful API update
+      const updatedProducts = products.map(product => 
+        product.id === editingProduct.id 
+          ? { ...product, ...updatedData }
+          : product
+      );
+      
+      setProducts(updatedProducts);
+      setEditingProduct(null);
+
+      // Optionally, refresh the products list
+      await fetchProducts();
+    } catch (error) {
+      console.error("Failed to update product:", error);
+      // You might want to show an error message to the user
+      alert("Failed to update product. Please try again.");
+    }
+  };
+
   const ListViewComponent = () => (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="bg-white rounded-lg shadow">
@@ -69,13 +212,6 @@ const InventoryManagement = () => {
             />
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => setView("manage")}
-              className="flex items-center gap-2 px-4 py-2 text-green-600 border border-green-600 rounded-lg hover:bg-green-50"
-            >
-              <Plus size={20} />
-              Add new product
-            </button>
             <button className="flex items-center gap-2 px-4 py-2 text-white bg-purple-600 rounded-lg hover:bg-purple-700">
               Export as CSV
             </button>
@@ -83,60 +219,88 @@ const InventoryManagement = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-y">
-              <tr>
-                <th className="w-8 p-4">
-                  <input type="checkbox" />
-                </th>
-                <th className="p-4 text-left">Product ID</th>
-                <th className="p-4 text-left">Product Name</th>
-                <th className="p-4 text-left">Category</th>
-                <th className="p-4 text-left">Status</th>
-                <th className="p-4 text-left">Count</th>
-                <th className="p-4 text-left">Vendor</th>
-                <th className="w-8 p-4">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((item, index) => (
-                <tr key={index} className="border-b">
-                  <td className="p-4">
+          {isLoading ? (
+            <div className="text-center py-4">Loading...</div>
+          ) : error ? (
+            <div className="text-center py-4 text-red-500">{error}</div>
+          ) : (
+            <table className="w-full">
+              <thead className="bg-gray-50 border-y">
+                <tr>
+                  <th className="w-8 p-4">
                     <input type="checkbox" />
-                  </td>
-                  <td className="p-4">{item.id}</td>
-                  <td className="p-4">{item.name}</td>
-                  <td className="p-4">{item.category}</td>
-                  <td className="p-4">
-                    <span
-                      className={`px-2 py-1 rounded ${
-                        item.status === "In stock"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span
-                      className={`px-3 py-1 rounded ${
-                        item.count > 0 ? "bg-green-100" : "bg-red-100"
-                      }`}
-                    >
-                      {item.count}
-                    </span>
-                  </td>
-                  <td className="p-4">{item.vendor}</td>
-                  <td className="p-4">
-                    <button className="p-1 hover:bg-gray-100 rounded">
-                      <MoreVertical size={20} />
-                    </button>
-                  </td>
+                  </th>
+                  <th className="p-4 text-left">Product ID</th>
+                  <th className="p-4 text-left">Product Name</th>
+                  <th className="p-4 text-left">Category</th>
+                  <th className="p-4 text-left">Status</th>
+                  <th className="p-4 text-left">Count</th>
+                  <th className="w-8 p-4">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {products.map((item, index) => (
+                  <tr key={index} className="border-b">
+                    <td className="p-4">
+                      <input type="checkbox" />
+                    </td>
+                    <td className="p-4">{item.id}</td>
+                    <td className="p-4">{item.name}</td>
+                    <td className="p-4">{item.category}</td>
+                    <td className="p-4">
+                      <span
+                        className={`px-2 py-1 rounded ${
+                          item.status === "In stock"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span
+                        className={`px-3 py-1 rounded ${
+                          item.count > 0 ? "bg-green-100" : "bg-red-100"
+                        }`}
+                      >
+                        {item.count}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowActionMenu(showActionMenu === item.id ? null : item.id)}
+                          className="p-1 hover:bg-gray-100 rounded"
+                        >
+                          <MoreVertical size={20} />
+                        </button>
+
+                        {showActionMenu === item.id && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border">
+                            <div className="py-1">
+                              <button
+                                onClick={() => handleEdit(item)}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                <Edit size={16} className="mr-2" /> Edit
+                              </button>
+                              <button
+                                onClick={() => {/* Add delete handler */}}
+                                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                              >
+                                <Trash2 size={16} className="mr-2" /> Delete
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         <div className="p-4 flex items-center justify-between">
@@ -247,6 +411,13 @@ const InventoryManagement = () => {
 
   return (
     <div>
+      {editingProduct && (
+        <EditModal
+          product={editingProduct}
+          onClose={() => setEditingProduct(null)}
+          onSave={handleSave}
+        />
+      )}
       {view === "list" ? <ListViewComponent /> : <ManageInventoryComponent />}
     </div>
   );

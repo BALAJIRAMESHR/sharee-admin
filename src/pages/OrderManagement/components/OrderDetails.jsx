@@ -1,281 +1,471 @@
 import React, { useState, useEffect } from "react";
-import { 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Package, 
-  Truck, 
+import {
+  MapPin,
+  Phone,
+  Mail,
+  Package,
+  Truck,
   IndianRupee,
   Building2,
   User,
   Map,
-  ArrowLeft
+  ArrowLeft,
+  Printer,
+  Pencil,
+  Calendar,
 } from "lucide-react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
+import orderService from "../../../services/orderService";
+import { toast } from "react-toastify";
+import placeholderImage from "../../../assets/images/placeholder-image.jpg";
 
 // Mock RefundModal component
-const RefundModal = ({ onRequestClose, id, totalAmt }) => {
+const RefundModal = ({ onRequestClose, id, totalAmt, onRefund }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
       <div className="bg-white p-6 rounded-lg">
         <h2>Process Refund</h2>
-        <p>Total Amount: ₹{totalAmt/100}</p>
-        <button onClick={onRequestClose} className="mt-4 bg-blue-500 text-white px-4 py-2 rounded">
-          Close
+        <p>Total Amount: ₹{totalAmt / 100}</p>
+        <button
+          onClick={() => {
+            onRefund(totalAmt);
+            onRequestClose();
+          }}
+          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Process Refund
         </button>
       </div>
     </div>
   );
 };
 
-function OrderDetails({ orderDetails: initialOrderDetails }) {
-  const orderedProducts = [
-    {
-      id: 1,
-      image: "/api/placeholder/100/100",
-      name: "Sample Product 1",
-      quantity: 2,
-      price: "999.99"
-    },
-    {
-      id: 2,
-      image: "/api/placeholder/100/100",
-      name: "Sample Product 2",
-      quantity: 1,
-      price: "1499.99"
-    }
-  ];
-  
-  const [shippingAddress, setShippingAddress] = useState({
-    shippingName: "John Doe",
-    shippingAddress1: "123 Main St",
-    shippingAddress2: "Apt 4B",
-    shippingState: "Karnataka",
-    shippingPincode: "560001",
-    shippingphNum: "9876543210",
-    shippingEmail: "john@example.com"
-  });
-  
-  const [amountDetails, setAmountDetails] = useState({
-    totalAmount: 349900,
-    gst: 1800,
-    shippingCharge: 100
-  });
-  
-  const [openRefundModal, setOpenRefundModal] = useState(false);
-  const [shippingStatus, setShippingStatus] = useState(initialOrderDetails?.Status || 'New');
+const OrderDetails = ({ orderDetails, onBack }) => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [orderData, setOrderData] = useState(orderDetails);
+  const [shippingAddress, setShippingAddress] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    pincode: "",
+    phoneNumber: "",
+  });
+
+  const [amountDetails, setAmountDetails] = useState({
+    totalAmount: 0,
+    taxPrice: 0,
+    shippingPrice: 0,
+    itemsPrice: 0,
+  });
+
+  const [openRefundModal, setOpenRefundModal] = useState(false);
+  const [shippingStatus, setShippingStatus] = useState("");
+  const [orderedItems, setOrderedItems] = useState([]);
 
   const handleBack = () => {
-    navigate(-1);
+    onBack();
   };
 
-  const handleStatusChange = (event) => {
-    const value = event.target.value;
-    setShippingStatus(value);
-    // Simulating success toast notification
-    console.log('Status updated successfully');
+  const handleStatusChange = async (event) => {
+    setLoading(true);
+    try {
+      await orderService.updateOrderStatus(
+        orderData._id,
+        event.target.value === "Delivered"
+      );
+      setShippingStatus(event.target.value);
+      setOrderData((prev) => ({
+        ...prev,
+        isDelivered: event.target.value === "Delivered",
+      }));
+      toast.success("Status updated successfully");
+    } catch (error) {
+      toast.error(error.message || "Failed to update status");
+      setShippingStatus(orderData.isDelivered ? "Delivered" : "Processing");
+    }
+    setLoading(false);
   };
 
-  const handleRefund = () => {
-    setOpenRefundModal(true);
+  const handleRefund = async (amount) => {
+    setLoading(true);
+    try {
+      await orderService.processRefund(orderData._id, amount);
+      toast.success("Refund processed successfully");
+      // Refresh order details
+      const updatedOrder = await orderService.getOrderById(orderData._id);
+      setOrderData(updatedOrder);
+    } catch (error) {
+      toast.error(error.message || "Failed to process refund");
+    }
+    setLoading(false);
+    setOpenRefundModal(false);
   };
 
   useEffect(() => {
-    if (initialOrderDetails) {
-      setShippingAddress(initialOrderDetails.shippingInfo);
-      setAmountDetails({
-        totalAmount: initialOrderDetails.shippingInfo.totalAmount,
-        gst: initialOrderDetails.shippingInfo.totalGST,
-        shippingCharge: initialOrderDetails.shippingInfo.shippingCharge,
-      });
-    }
-  }, [initialOrderDetails]);
+    if (orderDetails) {
+      // Update shipping address from order details
+      const { shippingAddress } = orderDetails;
+      setShippingAddress(shippingAddress);
 
-  // const getStatusColor = (status) => {
-  //   const colors = {
-  //     New: "bg-blue-100 text-blue-800",
-  //     Processing: "bg-yellow-100 text-yellow-800",
-  //     Hold: "bg-red-100 text-red-800",
-  //     Packed: "bg-purple-100 text-purple-800",
-  //     Shipped: "bg-indigo-100 text-indigo-800",
-  //     Delivered: "bg-green-100 text-green-800"
-  //   };
-  //   return colors[status] || "bg-gray-100 text-gray-800";
-  // };
+      // Update amount details from order details
+      setAmountDetails({
+        totalAmount: orderDetails.totalPrice || 0,
+        taxPrice: orderDetails.taxPrice || 0,
+        shippingPrice: orderDetails.shippingPrice || 0,
+        itemsPrice: orderDetails.itemsPrice || 0,
+      });
+
+      // Update shipping status
+      setShippingStatus(orderDetails.isDelivered ? "Delivered" : "Processing");
+
+      // Update ordered items
+      setOrderedItems(orderDetails.orderItems || []);
+    }
+  }, [orderDetails]);
+
+  const formatPrice = (price) => {
+    if (!price) return "0.00";
+    return Number(price).toLocaleString("en-IN", {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 2,
+    });
+  };
+
+  const handleImageError = (e) => {
+    e.target.src = placeholderImage;
+    e.target.onerror = null;
+  };
+
+  if (!orderDetails) {
+    return <div className="p-6">Loading...</div>;
+  }
 
   return (
-    <div className="p-6 space-y-6">
-      <button 
-        onClick={handleBack}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
-      >
-        <ArrowLeft className="h-5 w-5" />
-        <span>Back</span>
-      </button>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Shipping Address Card */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-4 border-b flex justify-between items-center">
-            <h2 className="text-xl font-bold">Shipping Address</h2>
-            <MapPin className="h-5 w-5 text-gray-500" />
+    <div className="max-w-7xl mx-auto p-6 bg-gray-50">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          ORDER #{orderDetails._id.slice(-6)}
+        </h1>
+        <div className="flex gap-3">
+          <button
+            onClick={onBack}
+            className="px-6 py-2.5 text-purple-600 bg-white border border-purple-100 rounded-lg hover:bg-purple-50 transition-colors"
+          >
+            Back
+          </button>
+          <button className="px-6 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+            Send Bill
+          </button>
+        </div>
+      </div>
+
+      {/* Cards Grid */}
+      <div className="grid grid-cols-3 gap-8 mb-8">
+        {/* Customer Details Card */}
+        <div className="bg-white rounded-xl p-6 flex flex-col justify-center items-center text-center shadow-sm border border-gray-100">
+          <div className="flex flex-col items-center mb-6">
+            <div>
+              <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center text-white mb-4">
+                {shippingAddress.firstName?.charAt()}
+                {shippingAddress.lastName?.charAt(0)}
+              </div>
+              <h3 className="text-purple-600 font-medium text-lg">
+                Customer Details
+              </h3>
+            </div>
           </div>
-          <div className="p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-gray-500" />
-              <span className="font-medium">{shippingAddress.shippingName}</span>
+          <div className="space-y-6 text-center">
+            <div>
+              <p className="font-medium text-gray-900 text-lg mb-1">
+                {orderDetails.user.username}
+              </p>
+              <p className="text-gray-500">{orderDetails.user.email}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-gray-500" />
-              <span>{shippingAddress.shippingAddress1}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Map className="h-4 w-4 text-gray-500" />
-              <span>{shippingAddress.shippingAddress2}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-gray-500" />
-                <span>{shippingAddress.shippingState}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-gray-500" />
-                <span>{shippingAddress.shippingPincode}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-gray-500" />
-              <span>{shippingAddress.shippingphNum}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-gray-500" />
-              <span>{shippingAddress.shippingEmail}</span>
+            <div>
+              <h4 className="text-purple-600 font-medium mb-2">
+                Delivery Address
+              </h4>
+              <p className="text-gray-600 leading-relaxed">
+                {orderDetails.shippingAddress.addressLine1 && (
+                  <>
+                    <br />
+                    {orderDetails.shippingAddress.addressLine2}
+                  </>
+                )}
+                {`${orderDetails.shippingAddress.city}, ${orderDetails.shippingAddress.state} - ${orderDetails.shippingAddress.pincode}`}
+                <br />
+                India
+                <br />
+                {orderDetails.shippingAddress.phoneNumber}
+              </p>
             </div>
           </div>
         </div>
 
         {/* Amount Details Card */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-4 border-b flex justify-between items-center">
-            <h2 className="text-xl font-bold">Amount Details</h2>
-            <IndianRupee className="h-5 w-5 text-gray-500" />
-          </div>
-          <div className="p-4 space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Shipping Charges</span>
-              <span className="px-3 py-1 bg-gray-100 rounded-full text-gray-800">
-                ₹{amountDetails.shippingCharge}
-              </span>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex flex-col items-center">
+          <h3 className="text-purple-600 font-medium text-lg mb-6 text-center">
+            Amount Details
+          </h3>
+          <div className="space-y-5">
+            <div className="flex items-center justify-between py-1">
+              <span className="text-gray-600">Payment Method</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-900">
+                  {orderDetails.paymentMethod}
+                </span>
+                <span>💳</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Total Amount</span>
-              <span className="px-3 py-1 bg-gray-100 rounded-full text-gray-800">
-                ₹{amountDetails.totalAmount / 100}
-              </span>
+            <div className="flex items-center justify-between py-1">
+              <span className="text-gray-600">Items Total</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-900">
+                  ₹{formatPrice(amountDetails.itemsPrice)}
+                </span>
+                <span>💰</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Refunded Amount</span>
-              <span className="px-3 py-1 bg-gray-100 rounded-full text-gray-800">
-                ₹{initialOrderDetails?.refundedAmt || 0}
-              </span>
+            <div className="flex items-center justify-between py-1">
+              <span className="text-gray-600">Tax</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-900">
+                  ₹{formatPrice(amountDetails.taxPrice)}
+                </span>
+                <span>💵</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600">Grant Total</span>
-              <span className="px-3 py-1 bg-gray-100 rounded-full text-gray-800">
-                ₹{(amountDetails.totalAmount / 100) - (initialOrderDetails?.refundedAmt || 0)}
-              </span>
+            <div className="flex items-center justify-between py-1">
+              <span className="text-gray-600">Shipping</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-900">
+                  ₹{formatPrice(amountDetails.shippingPrice)}
+                </span>
+                <span>🚚</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between py-1 border-t">
+              <span className="text-gray-900 font-medium">Grand Total</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-900">
+                  ₹{formatPrice(amountDetails.totalAmount)}
+                </span>
+                <span>💸</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Shipping Status Card */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-4 border-b flex justify-between items-center">
-            <h2 className="text-xl font-bold">Shipping Status</h2>
-            <Truck className="h-5 w-5 text-gray-500" />
-          </div>
-          <div className="p-4">
-            <select
-              value={shippingStatus}
-              onChange={handleStatusChange}
-              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="New">New</option>
-              <option value="Processing">Processing</option>
-              <option value="Hold">Hold</option>
-              <option value="Packed">Packed</option>
-              <option value="Shipped">Shipped</option>
-              <option value="Delivered">Delivered</option>
-            </select>
+        {/* Order Status Card */}
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 flex flex-col items-center">
+          <h3 className="text-purple-600 font-medium text-lg mb-6 text-center">
+            Order Status
+          </h3>
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-gray-500 text-sm">Ordered Location</p>
+                  <p className="text-gray-900 font-medium">
+                    {shippingAddress.city}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-gray-500 text-sm">Order Date</p>
+                  <p className="text-gray-900 font-medium">
+                    {new Date(orderDetails.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">
+                  Payment Status
+                </h4>
+                <span
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium ${
+                    orderDetails.isPaid
+                      ? "bg-green-50 text-green-600"
+                      : "bg-red-50 text-red-600"
+                  }`}
+                >
+                  {orderDetails.isPaid ? "PAID" : "PENDING"}
+                </span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">
+                  Fulfillment Status
+                </h4>
+                <span
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium ${
+                    orderDetails.isDelivered
+                      ? "bg-green-50 text-green-600"
+                      : "bg-purple-50 text-purple-600"
+                  }`}
+                >
+                  {orderDetails.isDelivered ? "DELIVERED" : "PROCESSING"}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Products and Refund Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Ordered Products Card */}
-        <div className="lg:col-span-3 bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-4 border-b flex justify-between items-center">
-            <h2 className="text-xl font-bold">Ordered Products</h2>
-            <Package className="h-5 w-5 text-gray-500" />
+      {/* Second Row */}
+      <div className="grid grid-cols-3 gap-6">
+        {/* Ordered Products Table */}
+        <div className="col-span-2 bg-white rounded-lg p-6 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-purple-600 font-medium">Ordered Products</h3>
+            <span className="text-sm text-gray-500">
+              Number of ordered products: {orderedItems.length}
+            </span>
           </div>
-          <div className="p-4 space-y-4">
-            {orderedProducts.length > 0 ? (
-              orderedProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="p-4 border rounded-lg bg-gray-50 space-y-2"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="w-24 h-24">
-                      <img src={product.image} alt="" className="w-full h-full object-cover" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-semibold">{product.name}</p>
-                      <span className="inline-block px-2 py-1 text-sm bg-gray-100 rounded">
-                        Qty: {product.quantity}
-                      </span>
-                    </div>
-                    <span className="py-1 bg-gray-100 rounded-full text-gray-800 px-3">
-                      ₹{(parseFloat(product.price) * product.quantity).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center text-gray-500">
-                No products found in this order.
+          <table className="w-full">
+            <thead>
+              <tr className="text-left text-gray-500 border-b">
+                <th className="py-3 font-medium">Image</th>
+                <th className="py-3 font-medium">Product Details</th>
+                <th className="py-3 font-medium">Quantity</th>
+                <th className="py-3 font-medium">Amount</th>
+                <th className="py-3 font-medium">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {orderedItems.map((item) => (
+                <tr key={item._id} className="text-gray-700">
+                  <td className="py-4">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      onError={handleImageError}
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                  </td>
+                  <td className="py-4">{item.name}</td>
+                  <td className="py-4">{item.qty}</td>
+                  <td className="py-4">₹{formatPrice(item.price)}</td>
+                  <td className="py-4">
+                    ₹{formatPrice(item.price * item.qty)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-6">
+          {/* Order Invoice */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-purple-600 font-medium">Order Invoice</h3>
+              <button className="text-gray-500 hover:text-gray-700 flex items-center gap-2">
+                <Printer size={16} />
+                Print
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Order Subtotal</span>
+                <span>₹{formatPrice(orderDetails.itemsPrice)}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Shipping Charges</span>
+                <span>₹{formatPrice(orderDetails.shippingPrice)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Tax</span>
+                <span>₹{formatPrice(orderDetails.taxPrice)}</span>
+              </div>
+              <div className="flex justify-between font-medium pt-2 border-t">
+                <span>Total Order Amount</span>
+                <span>₹{formatPrice(orderDetails.totalPrice)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Payment Status</span>
+                <span
+                  className={
+                    orderDetails.isPaid ? "text-green-600" : "text-red-600"
+                  }
+                >
+                  {orderDetails.isPaid
+                    ? `Paid on ${new Date(
+                        orderDetails.paidAt
+                      ).toLocaleDateString()}`
+                    : "Pending"}
+                </span>
+              </div>
+              {orderDetails.isPaid && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Payment Method</span>
+                  <span>{orderDetails.paymentMethod}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Order Notes */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-purple-600 font-medium">Order Notes</h3>
+              <button className="px-4 py-2 border text-gray-700 rounded-md hover:bg-gray-50">
+                + Notes
+              </button>
+            </div>
+            <p className="text-red-500 text-sm">
+              Currently no order notes available
+            </p>
+          </div>
+
+          {/* Refund Payment */}
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <h3 className="text-purple-600 font-medium mb-4">Refund Payment</h3>
+            {orderDetails.isPaid ? (
+              <button
+                onClick={() => setOpenRefundModal(true)}
+                className="w-full py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
+              >
+                Process Refund
+              </button>
+            ) : (
+              <button
+                disabled
+                className="w-full py-2 bg-gray-100 text-gray-500 rounded-lg cursor-not-allowed"
+              >
+                Payment Pending
+              </button>
             )}
           </div>
         </div>
-
-        {/* Refund Card */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-4 border-b flex justify-between items-center">
-            <h2 className="text-xl font-bold">Refund Payment</h2>
-          </div>
-          <div className="p-4 space-y-4">
-            <button 
-              onClick={handleRefund}
-              className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              Process Refund
-            </button>
-          </div>
-        </div>
       </div>
 
+      {/* Refund Modal */}
       {openRefundModal && (
         <RefundModal
+          id={orderDetails._id}
+          totalAmt={orderDetails.totalPrice}
           onRequestClose={() => setOpenRefundModal(false)}
-          id={initialOrderDetails?.id}
-          totalAmt={amountDetails.totalAmount}
+          onRefund={handleRefund}
         />
       )}
     </div>
   );
-}
+};
 
 export default OrderDetails;

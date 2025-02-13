@@ -3,15 +3,22 @@ import Sidebar from '../../components/SideBar';
 import Header from '../../components/Header';
 import OrderTable from './components/OrderTable';
 import OrderDetails from './components/OrderDetails';
+import { handleImageError, getImageUrl } from '../../utils/imageUtils';
 
-const OrdersManagement = () => {
+const OrderManagement = () => {
   const [activePage, setActivePage] = useState('Order Management');
-  const [Details, setDetails] = useState(false);
-  const [orderDetails, setOrderDetails] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const handleNavigate = (page) => {
     setActivePage(page);
-    console.log(`Navigated to: ${page}`);
+  };
+
+  const handleOrderSelect = (order) => {
+    setSelectedOrder(order);
+  };
+
+  const handleBack = () => {
+    setSelectedOrder(null);
   };
 
   return (
@@ -21,11 +28,17 @@ const OrdersManagement = () => {
       </div>
       <div className="flex-1 py-6 px-8 max-h-screen min-h-screen overflow-scroll">
         <Header />
-        {!Details && !orderDetails && <OrderTable setDetails={setDetails} orderDetails={orderDetails} setOrderDetails={setOrderDetails} />}
-        {orderDetails && <OrderDetails orderDetails={orderDetails} />}
+        {selectedOrder ? (
+          <OrderDetails 
+            orderDetails={selectedOrder} 
+            onBack={handleBack}
+          />
+        ) : (
+          <OrderTable onSelectOrder={handleOrderSelect} />
+        )}
       </div>
     </div>
   );
 };
 
-export default OrdersManagement;
+export default OrderManagement;

@@ -1,5 +1,6 @@
 import { CirclePlus, Edit2, Trash2 } from "lucide-react";
 import React from "react";
+import { handleImageError, getImageUrl } from '../../../utils/imageUtils';
 
 const CategoryList = ({ categories, onEdit, onDelete, setIsAdding }) => {
   const handleEdit = async (category) => {
@@ -65,12 +66,10 @@ const CategoryList = ({ categories, onEdit, onDelete, setIsAdding }) => {
               <td className="px-6 py-4 capitalize">{category.categoryType}</td>
               <td className="px-6 py-4">
                 <img
-                  src={category.categotyImage}
+                  src={getImageUrl(category.categotyImage)}
                   alt={category.categoryName}
-                  className="w-12 h-12 object-cover rounded"
-                  onError={(e) => {
-                    e.target.src = "/api/placeholder/48/48";
-                  }}
+                  onError={handleImageError}
+                  className="w-20 h-20 object-cover rounded"
                 />
               </td>
               <td className="px-6 py-4 flex items-center gap-2">

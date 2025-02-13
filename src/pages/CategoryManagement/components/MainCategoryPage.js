@@ -3,6 +3,7 @@ import { MoreVertical, Plus, Edit, Trash2 } from "lucide-react";
 import AddCategoryModal from "./AddCategoryModal";
 import { API_BASE_URL } from "../../../config/api";
 import axios from 'axios';
+import { handleImageError, getImageUrl } from '../../../utils/imageUtils';
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -420,12 +421,10 @@ const CategoryManagement = () => {
     // Add authorization header for image requests
     return (
       <img
-        src={imageUrl}
+        src={getImageUrl(imageUrl)}
         alt="Category"
         className="w-full h-full object-cover"
-        onError={(e) => {
-          e.target.src = "/api/placeholder/64/64";
-        }}
+        onError={handleImageError}
       />
     );
   };
