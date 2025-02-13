@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../config/api";
+import axios from "axios";
 
 // Add this near the top of the file, outside the component
 const ADMIN_USER = {
@@ -72,7 +73,7 @@ function Login() {
       }
 
       // If not admin, try API login
-      const response = await API_BASE_URL.post('/api/admin/login', {
+      const response = await axios.post(`${API_BASE_URL}/api/admin/login`, {
         email: formData.username,
         password: formData.password
       });

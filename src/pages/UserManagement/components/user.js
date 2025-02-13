@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Edit } from 'lucide-react';
+import axios from 'axios';
 import { API_BASE_URL } from '../../../config/api';
 
 const INITIAL_PERMISSIONS = {
@@ -30,7 +31,7 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await API_BASE_URL.get('/api/admin/getallusers');
+      const response = await axios.get(`${API_BASE_URL}/api/admin/getallusers`);
       setUsers(response.data);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -53,7 +54,7 @@ const UserManagement = () => {
         permissions: newUser.permissions
       };
 
-      const response = await API_BASE_URL.post('/api/admin/add', userData);
+      const response = await axios.post(`${API_BASE_URL}/api/admin/add`, userData);
 
       if (response.data.message === 'Admin user created successfully') {
         fetchUsers();
@@ -81,7 +82,7 @@ const UserManagement = () => {
 
   const handleSaveEdit = async (id) => {
     try {
-      const response = await API_BASE_URL.put(`/api/admin/edit/${id}`, {
+      const response = await axios.put(`${API_BASE_URL}/api/admin/edit/${id}`, {
         username: editUser.username,
         address: editUser.address,
         permissions: editUser.permissions,
