@@ -1,10 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../../config/api';
 
 const BannerAndOfferUpdate = () => {
   const [mainBanner, setMainBanner] = useState(null);
   const [sideImages, setSideImages] = useState([]);
   const [content, setContent] = useState('');
   const [contentList, setContentList] = useState([]);
+  const [editingContentId, setEditingContentId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [contentToDelete, setContentToDelete] = useState(null);
+
+  useEffect(() => {
+    fetchContent();
+  }, []);
+
+  const fetchContent = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/marketing/getallcontents`);
+      const data = await response.json();
+      setContentList(data);
+    } catch (error) {
+      console.error('Error fetching content:', error);
+    }
+  };
 
   const handleMainBannerUpload = (event) => {
     const file = event.target.files[0];
@@ -26,15 +44,65 @@ const BannerAndOfferUpdate = () => {
     setSideImages((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
-  const handleAddContent = () => {
+  const handleAddContent = async () => {
     if (content.trim()) {
-      setContentList((prev) => [...prev, content]);
-      setContent('');
+      try {
+        const response = await fetch(`${API_BASE_URL}/marketing/addcontent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content: content.trim() }),
+        });
+
+        if (response.ok) {
+          await fetchContent(); // Refresh the content list
+          setContent('');
+        } else {
+          const error = await response.json();
+          alert(error.error || 'Failed to add content');
+        }
+      } catch (error) {
+        console.error('Error adding content:', error);
+        alert('Failed to add content');
+      }
     }
   };
 
-  const handleRemoveContent = (indexToRemove) => {
-    setContentList((prev) => prev.filter((_, index) => index !== indexToRemove));
+  const handleRemoveContent = async (indexToRemove) => {
+    try {
+      // Since we don't have a delete endpoint, we'll mark it as deleted using edit
+      const response = await fetch(`${API_BASE_URL}/marketing/editcontent/${editingContentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isDeleted: true }),
+      });
+
+      if (response.ok) {
+        await fetchContent(); // Refresh the content list
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to remove content');
+      }
+    } catch (error) {
+      console.error('Error removing content:', error);
+      alert('Failed to remove content');
+    }
+  };
+
+  const handleDeleteClick = (content) => {
+    setContentToDelete(content);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (contentToDelete) {
+      await handleRemoveContent(contentToDelete._id);
+      setShowDeleteConfirm(false);
+      setContentToDelete(null);
+    }
   };
 
   return (
@@ -125,10 +193,13 @@ const BannerAndOfferUpdate = () => {
         </div>
 
         <div className="mt-4 space-y-2">
-          {contentList.map((item, index) => (
-            <div key={index} className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded-md">
-              <span>{item}</span>
-              <button className="text-red-500 hover:text-red-700" onClick={() => handleRemoveContent(index)}>
+          {contentList.map((item) => (
+            <div key={item._id} className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded-md">
+              <span>{item.content}</span>
+              <button 
+                className="text-red-500 hover:text-red-700" 
+                onClick={() => handleDeleteClick(item)}
+              >
                 ✕
               </button>
             </div>
@@ -141,6 +212,33 @@ const BannerAndOfferUpdate = () => {
           </button>
         </div>
       </div>
+
+      {/* Add the confirmation popup */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Confirm Delete</h3>
+            <p className="mb-6">Are you sure you want to delete this content?</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setContentToDelete(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                onClick={confirmDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

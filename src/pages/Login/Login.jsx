@@ -1,9 +1,25 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { baseAPI } from "../../config/api";
+
+// Add this near the top of the file, outside the component
+const ADMIN_USER = {
+  email: "admin",
+  password: "pass",
+  permissions: {
+    productManagement: true,
+    orderManagement: true,
+    categoryManagement: true,
+    couponsManagement: true,
+    inventoryManagement: true,
+    marketingManagement: true,
+    userManagement: true
+  }
+};
 
 function Login() {
   const [formData, setFormData] = useState({
-    email: "",
+    username: "",
     password: "",
   });
   const [forgotPassStep, setForgotPassStep] = useState(0);
@@ -19,11 +35,10 @@ function Login() {
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
   const handleResetDataChange = (e) => {
@@ -36,17 +51,48 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    try {
+      // First try built-in admin credentials
+      if (formData.username === "admin" && formData.password === "pass") {
+        const adminPermissions = {
+          productManagement: true,
+          orderManagement: true,
+          categoryManagement: true,
+          couponsManagement: true,
+          inventoryManagement: true,
+          marketingManagement: true,
+          userManagement: true
+        };
+        
+        localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
+        localStorage.setItem('userRole', 'admin');
+        navigate("/dashboard");
+        return;
+      }
 
-    if (formData.email !== "admin" || formData.password !== "pass") {
-      setError("Invalid username/email or password");
+      // If not admin, try API login
+      const response = await baseAPI.post('/api/admin/login', {
+        email: formData.username,
+        password: formData.password
+      });
+
+      if (response.data.message === 'Login successful') {
+        localStorage.setItem('userPermissions', JSON.stringify(response.data.user.permissions));
+        localStorage.setItem('userRole', 'admin');
+        localStorage.setItem('userId', response.data.user._id);
+        localStorage.setItem('token', response.data.user.token);
+        navigate("/dashboard");
+      } else {
+        throw new Error(response.data.message || "Login failed");
+      }
+    } catch (error) {
+      setError(error.message || "Invalid email or password");
       setShowError(true);
       setTimeout(() => {
         setShowError(false);
       }, 3000);
-      return;
     }
-
-    navigate("/dashboard");
   };
 
   const handleForgotPassword = async (e) => {
@@ -285,8 +331,8 @@ function Login() {
               </span>
               <input
                 type="text"
-                name="email"
-                value={formData.email}
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
                 className="w-full pl-10 pr-3 py-2 border rounded-md"
                 placeholder="Username or email"
