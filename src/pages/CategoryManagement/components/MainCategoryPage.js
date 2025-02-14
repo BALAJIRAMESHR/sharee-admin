@@ -1,25 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { MoreVertical, Plus, Edit, Trash2 } from "lucide-react";
 import AddCategoryModal from "./AddCategoryModal";
-import { API_BASE_URL } from "../../../config/api";
 import axios from "axios";
+import { categoryService } from "../../../services/categoryService";
 
 const CategoryManagement = () => {
-  const [categories, setCategories] = useState([
-    // Add some mock data
-    {
-      _id: '1',
-      categoryName: 'Sample Category 1',
-      categoryType: 'Saree',
-      categotyImage: 'https://via.placeholder.com/150'
-    },
-    {
-      _id: '2',
-      categoryName: 'Sample Category 2',
-      categoryType: 'Others',
-      categotyImage: 'https://via.placeholder.com/150'
-    }
-  ]);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const categories = await categoryService.getAllCategories();
+        setCategories(categories);  
+      } catch (error) { 
+        console.error("Category service error:", error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
   const [openMenuId, setOpenMenuId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -34,7 +33,7 @@ const CategoryManagement = () => {
       _id: Date.now().toString(),
       categoryName,
       categoryType,
-      categotyImage: URL.createObjectURL(image)
+      categotyImage: image
     };
     setCategories([...categories, newCategory]);
     setShowAddModal(false);
@@ -289,16 +288,35 @@ const CategoryManagement = () => {
     );
   };
 
-  const renderCategoryImage = (imageUrl) => {
-    // Add authorization header for image requests
+  const CategoryImage = ({ imageUrl }) => {
+    const [blobUrl, setBlobUrl] = useState(null);
+
+    useEffect(() => {
+      const fetchImage = async () => {
+        try {
+          const response = await axios.get("/files/1739535120772-487865765-Screenshot 2025-02-13 174231.png", {
+            headers: {
+              'Authorization': 'QuindlTokPATFileUpload2025#$$TerOiu$'
+            },
+            responseType: 'blob'
+          });
+          const blob = new Blob([response.data], { type: response.data.type });
+          const url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+        } catch (error) {
+          console.error("Failed to fetch image:", error);
+          setBlobUrl("/api/placeholder/64/64");
+        }
+      };
+
+      fetchImage();
+    }, [imageUrl]);
+
     return (
       <img
-        src={imageUrl}
+        src={blobUrl}
         alt="Category"
         className="w-full h-full object-cover"
-        onError={(e) => {
-          e.target.src = "/api/placeholder/64/64";
-        }}
       />
     );
   };
@@ -344,7 +362,7 @@ const CategoryManagement = () => {
           >
             <div className="col-span-2">
               <div className="w-16 h-16 overflow-hidden rounded">
-                {renderCategoryImage(category.categotyImage)}
+                <CategoryImage imageUrl={category.categotyImage} />
               </div>
             </div>
             <div className="col-span-4 flex items-center">

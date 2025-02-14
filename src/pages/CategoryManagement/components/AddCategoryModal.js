@@ -56,7 +56,7 @@ const AddCategoryModal = ({ onClose, onAdd }) => {
 
       const imageUploadResponse = await axios({
         method: "post",
-        url: "/api/upload",
+        url: "/upload",
         data: formData,
         headers: {
           Authorization: "QuindlTokPATFileUpload2025#$$TerOiu$",
@@ -71,7 +71,6 @@ const AddCategoryModal = ({ onClose, onAdd }) => {
       }
 
       const imageUrl = imageUploadResponse.data.filePath;
-
       // Then create the category with the image URL
       await onAdd(categoryName, imageUrl, categoryType);
       onClose();

@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { API_BASE_URL } from '../../../config/api';
 
 const BannerAndOfferUpdate = () => {
   const [mainBanner, setMainBanner] = useState(null);
+  const [mainImageFile, setMainImageFile] = useState(null);
+  const [mainBannerUrl, setMainBannerUrl] = useState('');
   const [sideImages, setSideImages] = useState([]);
+  const [sideImageFiles, setSideImageFiles] = useState([]);
+  const [sideImageUrls, setSideImageUrls] = useState([]);
   const [content, setContent] = useState('');
   const [contentList, setContentList] = useState([]);
   const [editingContentId, setEditingContentId] = useState(null);
@@ -24,24 +29,56 @@ const BannerAndOfferUpdate = () => {
     }
   };
 
-  const handleMainBannerUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setMainBanner(URL.createObjectURL(file));
+  const uploadImage = async (file) => {
+    const data = new FormData();
+    data.append('file', file);
+
+    const config = {
+      method: 'post',
+      maxBodyLength: Infinity,
+      url: '/upload',
+      headers: {
+        'Authorization': 'QuindlTokPATFileUpload2025#$$TerOiu$',
+        'Content-Type': 'multipart/form-data'
+      },
+      data: data
+    };
+
+    try {
+      const response = await axios.request(config);
+      console.log('Image uploaded:', response.data);
+      return response.data.filePath; // Assuming the API response contains the file path in `data.filePath`
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
     }
   };
 
-  const handleSideImageUpload = (event) => {
+  const handleMainBannerUpload = async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setMainBanner(URL.createObjectURL(file));
+      setMainImageFile(file);
+      const url = await uploadImage(file);
+      setMainBannerUrl(url);
+    }
+  };
+
+  const handleSideImageUpload = async (event) => {
     const files = Array.from(event.target.files);
     const newImages = files.map((file) => URL.createObjectURL(file));
-
-    // Limit total images to 6
     const updatedImages = [...sideImages, ...newImages].slice(0, 6);
     setSideImages(updatedImages);
+    setSideImageFiles([...sideImageFiles, ...files].slice(0, 6));
+
+    const urls = await Promise.all(files.map(file => uploadImage(file)));
+    setSideImageUrls([...sideImageUrls, ...urls].slice(0, 6));
   };
 
   const handleRemoveSideImage = (indexToRemove) => {
     setSideImages((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setSideImageFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setSideImageUrls((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
   const handleAddContent = async () => {
@@ -67,6 +104,11 @@ const BannerAndOfferUpdate = () => {
         alert('Failed to add content');
       }
     }
+  };
+
+  const handleAdd = async () => {
+    console.log('Main Banner URL:', mainBannerUrl);
+    console.log('Side Image URLs:', sideImageUrls);
   };
 
   const handleRemoveContent = async (indexToRemove) => {
@@ -170,7 +212,7 @@ const BannerAndOfferUpdate = () => {
           </div>
         </div>
         <div className="flex justify-center mt-4">
-          <button className="bg-purple-500 text-white w-1/2 py-2 rounded-md" onClick={() => alert('Images updated successfully!')}>
+          <button className="bg-purple-500 text-white w-1/2 py-2 rounded-md" onClick={handleAdd}>
             Add 
           </button>
         </div>
