@@ -21,9 +21,33 @@ const BannerAndOfferUpdate = () => {
 
   const fetchContent = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/marketing/getallcontents`);
+      const response = await fetch(`${API_BASE_URL}/marketing/getallcontents`, {
+        headers: {
+          'Authorization': 'QuindlTokPATFileUpload2025#$$TerOiu$'
+        }
+      });
       const data = await response.json();
-      setContentList(data);
+      
+      // Separate images and text content
+      const images = data.filter(item => item.image);
+      const texts = data.filter(item => item.content);
+
+      // Update state
+      if (images.length > 0) {
+        // Construct full URL for main banner with authorization
+        const mainBannerFullUrl = `${API_BASE_URL}${images[0].image}?auth=QuindlTokPATFileUpload2025#$$TerOiu$`;
+        setMainBanner(mainBannerFullUrl);
+        setMainBannerUrl(images[0].image); // Keep original path for backend operations
+        
+        // Construct full URLs for side images with authorization
+        const sideImgs = images.slice(1, 7).map(item => 
+          `${API_BASE_URL}${item.image}?auth=QuindlTokPATFileUpload2025#$$TerOiu$`
+        );
+        setSideImages(sideImgs);
+        setSideImageUrls(images.slice(1, 7).map(item => item.image)); // Keep original paths for backend operations
+      }
+      
+      setContentList(texts);
     } catch (error) {
       console.error('Error fetching content:', error);
     }
@@ -107,8 +131,48 @@ const BannerAndOfferUpdate = () => {
   };
 
   const handleAdd = async () => {
-    console.log('Main Banner URL:', mainBannerUrl);
-    console.log('Side Image URLs:', sideImageUrls);
+    try {
+      // Upload main banner
+      if (mainBannerUrl) {
+        const mainBannerData = {
+          image: mainBannerUrl,
+        };
+        await fetch(`${API_BASE_URL}/marketing/addcontent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(mainBannerData),
+        });
+      }
+
+      // Upload side images
+      for (const sideImageUrl of sideImageUrls) {
+        const sideImageData = {
+          image: sideImageUrl,
+        };
+        await fetch(`${API_BASE_URL}/marketing/addcontent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(sideImageData),
+        });
+      }
+
+      // Clear the form after successful upload
+      setMainBanner(null);
+      setMainImageFile(null);
+      setMainBannerUrl('');
+      setSideImages([]);
+      setSideImageFiles([]);
+      setSideImageUrls([]);
+
+      alert('Images uploaded successfully!');
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      alert('Failed to upload images');
+    }
   };
 
   const handleRemoveContent = async (indexToRemove) => {
@@ -154,11 +218,11 @@ const BannerAndOfferUpdate = () => {
         <h2 className="text-2xl font-bold mb-4">Banner</h2>
         <div className="flex gap-4">
           <div className="border-2 border-dashed border-gray-300 rounded-md w-2/3 h-64 flex items-center justify-center bg-gray-100 cursor-pointer" onClick={() => document.getElementById('mainBannerUpload').click()}>
-            {mainBanner ? (
-              <img src={mainBanner} alt="Main Banner" className="w-full h-full object-cover rounded-md" />
-            ) : (
-              <div className="text-gray-400">Upload Main Banner</div>
-            )}
+            <img 
+              src={mainBanner || ''} 
+              alt="Main Banner" 
+              className="w-full h-full object-cover rounded-md" 
+            />
             <input type="file" accept="image/*" id="mainBannerUpload" className="hidden" onChange={handleMainBannerUpload} />
           </div>
 
@@ -180,7 +244,7 @@ const BannerAndOfferUpdate = () => {
                 {index < sideImages.length ? (
                   <>
                     <img 
-                      src={sideImages[index]} 
+                      src={sideImages[index] || ''} 
                       alt={`Thumbnail ${index + 1}`} 
                       className="w-full h-full object-cover rounded-md" 
                     />
