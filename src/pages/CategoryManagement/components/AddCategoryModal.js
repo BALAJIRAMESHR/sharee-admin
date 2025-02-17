@@ -71,6 +71,8 @@ const AddCategoryModal = ({ onClose, onAdd }) => {
       }
 
       const imageUrl = imageUploadResponse.data.filePath;
+      console.log('Image uploaded successfully:', imageUrl);
+
       // Then create the category with the image URL
       await onAdd(categoryName, imageUrl, categoryType);
       onClose();

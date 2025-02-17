@@ -3,6 +3,8 @@ import { CirclePlus, MoreVertical, X } from "lucide-react";
 import { productService } from "../../../services/productService";
 import { categoryService } from "../../../services/categoryService";
 import { variantService } from "../../../services/variantService";
+import { API_BASE_URL } from "../../../config/api";
+import EditModal from "./EditModal";
 
 const EditProductModal = ({ product, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -552,14 +554,16 @@ const ProductTable = ({ setAddForm }) => {
 
   const fetchProducts = async () => {
     try {
-      setIsLoading(true);
-      const data = await productService.getAllProducts();
-      console.log('Fetched Products:', data);
+      const response = await fetch(`${API_BASE_URL}/products/getallproducts`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
+      }
+      const data = await response.json();
       setProducts(data);
       setFilteredProducts(data);
     } catch (error) {
-      console.error("Failed to fetch products:", error);
-      setError("Failed to load products");
+      console.error("Error fetching products:", error);
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -597,7 +601,7 @@ const ProductTable = ({ setAddForm }) => {
     setActiveMenu(activeMenu === id ? null : id);
   };
 
-  const handleEdit = async (product) => {
+  const handleEdit = (product) => {
     setSelectedProduct(product);
   };
 
@@ -619,27 +623,20 @@ const ProductTable = ({ setAddForm }) => {
 
   const handleUpdate = async (updatedProduct) => {
     try {
-      console.log("Updating product with ID:", updatedProduct._id);
-      
-      if (!updatedProduct._id) {
-        throw new Error("Product ID is missing");
-      }
-
-      const response = await productService.updateProduct(
-        updatedProduct._id,
-        updatedProduct
+      // Update the products list with the new data
+      setProducts(prevProducts => 
+        prevProducts.map(product => 
+          product._id === updatedProduct._id ? updatedProduct : product
+        )
       );
       
-      const newProducts = products.map((product) =>
-        product._id === response._id ? response : product
-      );
+      // Optionally refresh the product list from the server
+      await fetchProducts();
       
-      setProducts(newProducts);
-      setFilteredProducts(newProducts);
-      setSelectedProduct(null);
+      setSelectedProduct(null); // Close the edit modal
     } catch (error) {
-      console.error("Failed to update product:", error);
-      alert("Failed to update product. Please try again.");
+      console.error("Error updating product:", error);
+      alert(error.message || "Failed to update product");
     }
   };
 
@@ -650,7 +647,7 @@ const ProductTable = ({ setAddForm }) => {
 
   if (selectedProduct) {
     return (
-      <EditProductModal
+      <EditModal
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
         onSave={handleUpdate}

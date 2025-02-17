@@ -344,6 +344,7 @@ const OrderDetails = ({ orderDetails, onBack }) => {
                 <th className="py-3 font-medium">Quantity</th>
                 <th className="py-3 font-medium">Amount</th>
                 <th className="py-3 font-medium">Total</th>
+                <th className="py-3 font-medium">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -360,8 +361,23 @@ const OrderDetails = ({ orderDetails, onBack }) => {
                   <td className="py-4">{item.name}</td>
                   <td className="py-4">{item.qty}</td>
                   <td className="py-4">₹{formatPrice(item.price)}</td>
+                  <td className="py-4">₹{formatPrice(item.price * item.qty)}</td>
                   <td className="py-4">
-                    ₹{formatPrice(item.price * item.qty)}
+                    {orderDetails.isPaid ? (
+                      <button
+                        onClick={() => setOpenRefundModal(true)}
+                        className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 text-sm"
+                      >
+                        Refund
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg cursor-not-allowed text-sm"
+                      >
+                        Payment Pending
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -418,39 +434,6 @@ const OrderDetails = ({ orderDetails, onBack }) => {
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Order Notes */}
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-purple-600 font-medium">Order Notes</h3>
-              <button className="px-4 py-2 border text-gray-700 rounded-md hover:bg-gray-50">
-                + Notes
-              </button>
-            </div>
-            <p className="text-red-500 text-sm">
-              Currently no order notes available
-            </p>
-          </div>
-
-          {/* Refund Payment */}
-          <div className="bg-white rounded-lg p-6 shadow-sm">
-            <h3 className="text-purple-600 font-medium mb-4">Refund Payment</h3>
-            {orderDetails.isPaid ? (
-              <button
-                onClick={() => setOpenRefundModal(true)}
-                className="w-full py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
-              >
-                Process Refund
-              </button>
-            ) : (
-              <button
-                disabled
-                className="w-full py-2 bg-gray-100 text-gray-500 rounded-lg cursor-not-allowed"
-              >
-                Payment Pending
-              </button>
-            )}
           </div>
         </div>
       </div>

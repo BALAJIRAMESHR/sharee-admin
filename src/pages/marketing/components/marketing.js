@@ -3,53 +3,41 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../../config/api';
 
 const BannerAndOfferUpdate = () => {
-  const [mainBanner, setMainBanner] = useState(null);
-  const [mainImageFile, setMainImageFile] = useState(null);
-  const [mainBannerUrl, setMainBannerUrl] = useState('');
-  const [sideImages, setSideImages] = useState([]);
-  const [sideImageFiles, setSideImageFiles] = useState([]);
-  const [sideImageUrls, setSideImageUrls] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [savedBanners, setSavedBanners] = useState([]);
   const [content, setContent] = useState('');
   const [contentList, setContentList] = useState([]);
   const [editingContentId, setEditingContentId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [contentToDelete, setContentToDelete] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showBannerDeleteConfirm, setShowBannerDeleteConfirm] = useState(false);
+  const [bannerToDelete, setBannerToDelete] = useState(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   useEffect(() => {
     fetchContent();
+    fetchBanners();
   }, []);
 
   const fetchContent = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/marketing/getallcontents`, {
-        headers: {
-          'Authorization': 'QuindlTokPATFileUpload2025#$$TerOiu$'
-        }
-      });
+      const response = await fetch(`${API_BASE_URL}/marketing/getallcontents`);
       const data = await response.json();
-      
-      // Separate images and text content
-      const images = data.filter(item => item.image);
-      const texts = data.filter(item => item.content);
-
-      // Update state
-      if (images.length > 0) {
-        // Construct full URL for main banner with authorization
-        const mainBannerFullUrl = `${API_BASE_URL}${images[0].image}?auth=QuindlTokPATFileUpload2025#$$TerOiu$`;
-        setMainBanner(mainBannerFullUrl);
-        setMainBannerUrl(images[0].image); // Keep original path for backend operations
-        
-        // Construct full URLs for side images with authorization
-        const sideImgs = images.slice(1, 7).map(item => 
-          `${API_BASE_URL}${item.image}?auth=QuindlTokPATFileUpload2025#$$TerOiu$`
-        );
-        setSideImages(sideImgs);
-        setSideImageUrls(images.slice(1, 7).map(item => item.image)); // Keep original paths for backend operations
-      }
-      
-      setContentList(texts);
+      setContentList(data);
     } catch (error) {
       console.error('Error fetching content:', error);
+    }
+  };
+
+  const fetchBanners = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/marketing`);
+      const data = await response.json();
+      setSavedBanners(data.filter(banner => !banner.isDeleted));
+    } catch (error) {
+      console.error('Error fetching banners:', error);
     }
   };
 
@@ -78,31 +66,22 @@ const BannerAndOfferUpdate = () => {
     }
   };
 
-  const handleMainBannerUpload = async (event) => {
+  const handleBannerUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
-      setMainBanner(URL.createObjectURL(file));
-      setMainImageFile(file);
-      const url = await uploadImage(file);
-      setMainBannerUrl(url);
+      const previewUrl = URL.createObjectURL(file);
+      const uploadedUrl = await uploadImage(file);
+      
+      setBanners(prevBanners => [...prevBanners, {
+        id: Date.now(),
+        image: previewUrl,
+        url: uploadedUrl || ''
+      }]);
     }
   };
 
-  const handleSideImageUpload = async (event) => {
-    const files = Array.from(event.target.files);
-    const newImages = files.map((file) => URL.createObjectURL(file));
-    const updatedImages = [...sideImages, ...newImages].slice(0, 6);
-    setSideImages(updatedImages);
-    setSideImageFiles([...sideImageFiles, ...files].slice(0, 6));
-
-    const urls = await Promise.all(files.map(file => uploadImage(file)));
-    setSideImageUrls([...sideImageUrls, ...urls].slice(0, 6));
-  };
-
-  const handleRemoveSideImage = (indexToRemove) => {
-    setSideImages((prev) => prev.filter((_, index) => index !== indexToRemove));
-    setSideImageFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
-    setSideImageUrls((prev) => prev.filter((_, index) => index !== indexToRemove));
+  const handleRemoveBanner = (bannerId) => {
+    setBanners(prevBanners => prevBanners.filter(banner => banner.id !== bannerId));
   };
 
   const handleAddContent = async () => {
@@ -127,51 +106,6 @@ const BannerAndOfferUpdate = () => {
         console.error('Error adding content:', error);
         alert('Failed to add content');
       }
-    }
-  };
-
-  const handleAdd = async () => {
-    try {
-      // Upload main banner
-      if (mainBannerUrl) {
-        const mainBannerData = {
-          image: mainBannerUrl,
-        };
-        await fetch(`${API_BASE_URL}/marketing/addcontent`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(mainBannerData),
-        });
-      }
-
-      // Upload side images
-      for (const sideImageUrl of sideImageUrls) {
-        const sideImageData = {
-          image: sideImageUrl,
-        };
-        await fetch(`${API_BASE_URL}/marketing/addcontent`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(sideImageData),
-        });
-      }
-
-      // Clear the form after successful upload
-      setMainBanner(null);
-      setMainImageFile(null);
-      setMainBannerUrl('');
-      setSideImages([]);
-      setSideImageFiles([]);
-      setSideImageUrls([]);
-
-      alert('Images uploaded successfully!');
-    } catch (error) {
-      console.error('Error uploading images:', error);
-      alert('Failed to upload images');
     }
   };
 
@@ -211,75 +145,176 @@ const BannerAndOfferUpdate = () => {
     }
   };
 
-  return (
-    <div className="p-6 max-w-5xl mx-auto">
-      {/* Banner Section */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-4">Banner</h2>
-        <div className="flex gap-4">
-          <div className="border-2 border-dashed border-gray-300 rounded-md w-2/3 h-64 flex items-center justify-center bg-gray-100 cursor-pointer" onClick={() => document.getElementById('mainBannerUpload').click()}>
-            <img 
-              src={mainBanner || ''} 
-              alt="Main Banner" 
-              className="w-full h-full object-cover rounded-md" 
-            />
-            <input type="file" accept="image/*" id="mainBannerUpload" className="hidden" onChange={handleMainBannerUpload} />
-          </div>
+  const handleBannerDeleteClick = (banner) => {
+    setBannerToDelete(banner);
+    setShowBannerDeleteConfirm(true);
+  };
 
-          <div className="w-1/3 grid grid-cols-3 grid-rows-2 gap-2">
-            {[...Array(6)].map((_, index) => (
-              <div 
-                key={index} 
-                className={`
-                  border-2 border-dashed border-gray-300 rounded-md 
-                  h-20 flex items-center justify-center 
-                  ${index < sideImages.length ? 'bg-white' : 'bg-gray-100'}
-                  relative
-                `}
-                onClick={index === sideImages.length ? 
-                  () => document.getElementById('sideImageUpload').click() : 
-                  undefined
-                }
-              >
-                {index < sideImages.length ? (
-                  <>
-                    <img 
-                      src={sideImages[index] || ''} 
-                      alt={`Thumbnail ${index + 1}`} 
-                      className="w-full h-full object-cover rounded-md" 
-                    />
-                    <button 
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveSideImage(index);
-                      }}
-                    >
-                      ×
-                    </button>
-                  </>
-                ) : (
-                  index === sideImages.length ? (
-                    <div className="text-gray-400 text-center">Add Image</div>
-                  ) : null
-                )}
-              </div>
-            ))}
+  const confirmBannerDelete = async () => {
+    if (bannerToDelete) {
+      await handleDeleteBanner(bannerToDelete._id);
+      setShowBannerDeleteConfirm(false);
+      setBannerToDelete(null);
+      showToastMessage('Banner deleted successfully');
+    }
+  };
+
+  const showToastMessage = (message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const handleSaveBanner = async (banner) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/marketing`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'QuindlTokPATFileUpload2025#$$TerOiu$'
+        },
+        body: JSON.stringify({ imageUrls: banner.url }),
+      });
+
+      if (response.ok) {
+        setBanners(prevBanners => prevBanners.filter(b => b.id !== banner.id));
+        await fetchBanners();
+        showToastMessage('Banner uploaded successfully!');
+      } else {
+        const error = await response.json();
+        showToastMessage(error.error || 'Failed to save banner');
+      }
+    } catch (error) {
+      console.error('Error saving banner:', error);
+      showToastMessage('Failed to save banner');
+    }
+  };
+
+  const handleDeleteBanner = async (bannerId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/marketing/${bannerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'QuindlTokPATFileUpload2025#$$TerOiu$'
+        },
+        body: JSON.stringify({ isDeleted: true }),
+      });
+
+      if (response.ok) {
+        await fetchBanners(); // Refresh the banners list
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete banner');
+      }
+    } catch (error) {
+      console.error('Error deleting banner:', error);
+      alert('Failed to delete banner');
+    }
+  };
+
+  return (
+    <div className="p-4 max-w-5xl mx-auto">
+      {/* Banner Section */}
+      <div className="mb-8 bg-white p-6 rounded-lg shadow-sm">
+        <h2 className="text-xl font-bold mb-6 text-gray-800">Banner Management</h2>
+        
+        {/* Upload Section */}
+        <div className="mb-8">
+          <div 
+            className="border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 
+                       cursor-pointer h-40 transition-all duration-300 hover:border-purple-400 hover:bg-gray-100 relative"
+            onClick={() => document.getElementById('bannerUpload').click()}
+          >
+            <div className="flex flex-col items-center p-4">
+              <svg className="w-8 h-8 text-purple-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <div className="text-gray-700 font-medium text-sm mb-1">Upload Banner</div>
+              <div className="text-gray-400 text-xs">JPG, PNG up to 5MB</div>
+            </div>
             <input 
               type="file" 
               accept="image/*" 
-              id="sideImageUpload" 
-              multiple 
+              id="bannerUpload" 
               className="hidden" 
-              onChange={handleSideImageUpload} 
+              onChange={handleBannerUpload}
             />
           </div>
         </div>
-        <div className="flex justify-center mt-4">
-          <button className="bg-purple-500 text-white w-1/2 py-2 rounded-md" onClick={handleAdd}>
-            Add 
-          </button>
-        </div>
+
+        {/* Selected Banner Preview */}
+        {banners.length > 0 && (
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold mb-4">Selected Banners</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {banners.map((banner) => (
+                <div key={banner.id} className="relative group bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300">
+                  <div className="relative overflow-hidden rounded-t-lg">
+                    <div className="aspect-w-16 aspect-h-9">
+                      <img 
+                        src={banner.image} 
+                        alt="Banner Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <button 
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 
+                                flex items-center justify-center opacity-0 group-hover:opacity-100 
+                                transition-all duration-200 hover:bg-red-600 shadow-sm"
+                      onClick={() => handleRemoveBanner(banner.id)}
+                    >
+                      <span className="text-lg leading-none">&times;</span>
+                    </button>
+                  </div>
+                  <div className="p-3">
+                    <button 
+                      className="w-full bg-purple-500 text-white px-4 py-2 rounded-md hover:bg-purple-600 
+                                transition-all duration-200 text-sm font-medium
+                                flex items-center justify-center space-x-2"
+                      onClick={() => handleSaveBanner(banner)}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      <span>Save Banner</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Saved Banners Section */}
+        {savedBanners.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Saved Banners</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {savedBanners.map((banner) => (
+                <div key={banner._id} className="relative group">
+                  <div className="relative overflow-hidden rounded-lg shadow-sm">
+                    <div className="aspect-w-16 aspect-h-9">
+                      <img 
+                        src={banner.imageUrls}
+                        alt="Saved Banner"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <button 
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 
+                                 flex items-center justify-center opacity-0 group-hover:opacity-100 
+                                 transition-opacity duration-200 hover:bg-red-600"
+                      onClick={() => handleBannerDeleteClick(banner)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content Section */}
@@ -342,6 +377,42 @@ const BannerAndOfferUpdate = () => {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add the banner delete confirmation popup */}
+      {showBannerDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Delete Banner</h3>
+            <p className="mb-6">Are you sure you want to delete this banner?</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+                onClick={() => {
+                  setShowBannerDeleteConfirm(false);
+                  setBannerToDelete(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                onClick={confirmBannerDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg transition-all duration-300 z-50">
+          <div className="flex items-center space-x-2">
+            <span>{toastMessage}</span>
           </div>
         </div>
       )}
