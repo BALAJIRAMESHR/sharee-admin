@@ -113,10 +113,10 @@ const OrderTable = ({ onSelectOrder }) => {
                 <td className="px-6 py-4">
                   <div className="flex flex-col gap-1">
                     <span className={order.isPaid ? 'text-green-500' : 'text-red-500'}>
-                      {order.isPaid ? 'Paid' : 'Cash on Delivery'}
+                      {order.isPaid ? `Paid on ${new Date(order.paidAt).toLocaleDateString()}` : 'Pending'}
                     </span>
                     <span className="text-blue-500">
-                      {order.isDelivered ? 'Delivered' : 'Processing'}
+                      {order.isDelivered ? `Delivered on ${new Date(order.deliveredAt).toLocaleDateString()}` : 'Processing'}
                     </span>
                   </div>
                 </td>

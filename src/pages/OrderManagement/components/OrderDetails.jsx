@@ -19,26 +19,54 @@ import orderService from "../../../services/orderService";
 import { toast } from "react-toastify";
 import placeholderImage from "../../../assets/images/placeholder-image.jpg";
 
-// Mock RefundModal component
 const RefundModal = ({ onRequestClose, id, totalAmt, onRefund }) => {
+  const [refundAmount, setRefundAmount] = useState("");
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-white p-6 rounded-lg">
-        <h2>Process Refund</h2>
-        <p>Total Amount: ₹{totalAmt / 100}</p>
-        <button
-          onClick={() => {
-            onRefund(totalAmt);
-            onRequestClose();
-          }}
-          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Process Refund
-        </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg w-96">
+        <h2 className="text-xl font-semibold mb-4">Process Refund</h2>
+        <div className="mb-4">
+          <label className="block text-gray-700 mb-2"></label>
+          <input
+            type="number"
+            value={refundAmount}
+            onChange={(e) =>
+              setRefundAmount(Math.min(totalAmt, Math.max(0, e.target.value)))
+            }
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-purple-500"
+            max={totalAmt}
+            min={0}
+            required
+          />
+        </div>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onRequestClose}
+            className="px-4 py-2 text-gray-600 border rounded hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (!refundAmount) {
+                toast.error("Please enter a refund amount");
+                return;
+              }
+              onRefund(refundAmount);
+              onRequestClose();
+            }}
+            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+          >
+            Process Refund
+          </button>
+        </div>
       </div>
     </div>
   );
 };
+
+// ... existing code ...
 
 const OrderDetails = ({ orderDetails, onBack }) => {
   const navigate = useNavigate();
@@ -64,46 +92,134 @@ const OrderDetails = ({ orderDetails, onBack }) => {
   });
 
   const [openRefundModal, setOpenRefundModal] = useState(false);
-  const [shippingStatus, setShippingStatus] = useState("");
+  const [shippingStatus, setShippingStatus] = useState(
+    orderDetails.shippingStatus || "Processing"
+  );
+  const [isPacked, setIsPacked] = useState(
+    orderDetails.shippingStatus === "Packed" ||
+      orderDetails.shippingStatus === "Shipped" ||
+      orderDetails.shippingStatus === "Delivered"
+  );
   const [orderedItems, setOrderedItems] = useState([]);
+  const [selectedItemId, setSelectedItemId] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState(
+    orderDetails.isPaid ? "Paid" : "Pending"
+  );
+  const [codPaid, setCodPaid] = useState(orderDetails.isPaid);
 
   const handleBack = () => {
     onBack();
   };
 
   const handleStatusChange = async (event) => {
+    const newStatus = event.target.value;
     setLoading(true);
     try {
-      await orderService.updateOrderStatus(
+      // Update shipping status in backend
+      const updatedOrder = await orderService.updateShippingStatus(
         orderData._id,
-        event.target.value === "Delivered"
+        newStatus
       );
-      setShippingStatus(event.target.value);
-      setOrderData((prev) => ({
-        ...prev,
-        isDelivered: event.target.value === "Delivered",
-      }));
+
+      // Update local state with the response from backend
+      setShippingStatus(updatedOrder.shippingStatus);
+      setIsPacked(
+        updatedOrder.shippingStatus === "Packed" ||
+          updatedOrder.shippingStatus === "Shipped" ||
+          updatedOrder.shippingStatus === "Delivered"
+      );
+      setOrderData(updatedOrder);
+
       toast.success("Status updated successfully");
     } catch (error) {
       toast.error(error.message || "Failed to update status");
-      setShippingStatus(orderData.isDelivered ? "Delivered" : "Processing");
+      // Revert to previous status on error
+      setShippingStatus(orderData.shippingStatus);
     }
     setLoading(false);
   };
 
+  const handleRefundClick = (itemId) => {
+    setSelectedItemId(itemId);
+    setOpenRefundModal(true);
+  };
+
   const handleRefund = async (amount) => {
+    if (!selectedItemId) {
+      toast.error("No item selected for refund");
+      return;
+    }
+
     setLoading(true);
     try {
-      await orderService.processRefund(orderData._id, amount);
+      const orderItem = orderData.orderItems.find(
+        (item) => item._id === selectedItemId
+      );
+      if (!orderItem) throw new Error("Order item not found");
+
+      await orderService.processRefund(orderData._id, selectedItemId, amount);
       toast.success("Refund processed successfully");
-      // Refresh order details
-      const updatedOrder = await orderService.getOrderById(orderData._id);
-      setOrderData(updatedOrder);
+
+      // Update the local state to show refunded status
+      setOrderData((prev) => ({
+        ...prev,
+        orderItems: prev.orderItems.map((item) =>
+          item._id === selectedItemId
+            ? { ...item, refunded: true, refundAmount: amount }
+            : item
+        ),
+      }));
     } catch (error) {
       toast.error(error.message || "Failed to process refund");
     }
     setLoading(false);
     setOpenRefundModal(false);
+    setSelectedItemId(null);
+  };
+
+  const handleCodPaymentChange = async (event) => {
+    const isPaid = event.target.checked;
+    setLoading(true);
+    try {
+      // Update payment status in backend
+      const updatedOrder = await orderService.updatePaymentStatus(
+        orderData._id
+      );
+
+      // Update local state with the response from backend
+      setCodPaid(updatedOrder.isPaid);
+      setPaymentStatus(updatedOrder.isPaid ? "Paid" : "Pending");
+      setOrderData(updatedOrder);
+
+      toast.success("Payment status updated successfully");
+    } catch (error) {
+      toast.error(error.message || "Failed to update payment status");
+      // Revert to previous state on error
+      setCodPaid(orderData.isPaid);
+      setPaymentStatus(orderData.isPaid ? "Paid" : "Pending");
+    }
+    setLoading(false);
+  };
+
+  const handlePaymentStatusChange = async (event) => {
+    const newStatus = event.target.value;
+    setLoading(true);
+    try {
+      if (newStatus === "Paid") {
+        await orderService.updateOrderToPaid(orderData._id);
+      }
+      setPaymentStatus(newStatus);
+      setOrderData((prev) => ({
+        ...prev,
+        isPaid: newStatus === "Paid",
+        paidAt: newStatus === "Paid" ? new Date() : null,
+      }));
+      toast.success("Payment status updated successfully");
+    } catch (error) {
+      toast.error(error.message || "Failed to update payment status");
+      setPaymentStatus(orderData.isPaid ? "Paid" : "Pending");
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -121,7 +237,8 @@ const OrderDetails = ({ orderDetails, onBack }) => {
       });
 
       // Update shipping status
-      setShippingStatus(orderDetails.isDelivered ? "Delivered" : "Processing");
+      setShippingStatus(orderDetails.shippingStatus || "Processing");
+      setPaymentStatus(orderDetails.isPaid ? "Paid" : "Pending");
 
       // Update ordered items
       setOrderedItems(orderDetails.orderItems || []);
@@ -183,16 +300,20 @@ const OrderDetails = ({ orderDetails, onBack }) => {
           <div className="space-y-6 text-center">
             <div>
               <p className="font-medium text-gray-900 text-lg mb-1">
-                {orderDetails.user.username}
+                {orderDetails.shippingAddress.firstName}{" "}
+                {orderDetails.shippingAddress.lastName}
               </p>
-              <p className="text-gray-500">{orderDetails.user.email}</p>
+              <p className="text-gray-500">
+                {orderDetails.shippingAddress.email}
+              </p>
             </div>
             <div>
               <h4 className="text-purple-600 font-medium mb-2">
                 Delivery Address
               </h4>
               <p className="text-gray-600 leading-relaxed">
-                {orderDetails.shippingAddress.addressLine1 && (
+                {orderDetails.shippingAddress.addressLine1}
+                {orderDetails.shippingAddress.addressLine2 && (
                   <>
                     <br />
                     {orderDetails.shippingAddress.addressLine2}
@@ -267,7 +388,7 @@ const OrderDetails = ({ orderDetails, onBack }) => {
           <h3 className="text-purple-600 font-medium text-lg mb-6 text-center">
             Order Status
           </h3>
-          <div className="space-y-6">
+          <div className="space-y-6 w-full">
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
@@ -297,29 +418,79 @@ const OrderDetails = ({ orderDetails, onBack }) => {
                 <h4 className="font-medium text-gray-900 mb-2">
                   Payment Status
                 </h4>
-                <span
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium ${
-                    orderDetails.isPaid
-                      ? "bg-green-50 text-green-600"
-                      : "bg-red-50 text-red-600"
-                  }`}
-                >
-                  {orderDetails.isPaid ? "PAID" : "PENDING"}
-                </span>
+                {orderDetails.paymentMethod.toLowerCase() === "cod" ? (
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label className="relative flex items-center justify-between cursor-pointer group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center">
+                          <IndianRupee className="w-5 h-5 text-orange-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">Cash</p>
+                          <p className="text-sm text-gray-500">
+                            {codPaid ? "Payment collected" : "Payment pending"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={codPaid}
+                          onChange={handleCodPaymentChange}
+                          disabled={loading}
+                          className="sr-only peer"
+                        />
+                        <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
+                      </div>
+                    </label>
+                  </div>
+                ) : (
+                  <select
+                    value={paymentStatus}
+                    onChange={handlePaymentStatusChange}
+                    disabled={loading}
+                    className="w-full p-3 border rounded-lg bg-gray-50 text-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Paid">Paid</option>
+                  </select>
+                )}
               </div>
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">
                   Fulfillment Status
                 </h4>
-                <span
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium ${
-                    orderDetails.isDelivered
-                      ? "bg-green-50 text-green-600"
-                      : "bg-purple-50 text-purple-600"
-                  }`}
-                >
-                  {orderDetails.isDelivered ? "DELIVERED" : "PROCESSING"}
-                </span>
+                <div className="relative">
+                  <select
+                    value={shippingStatus}
+                    onChange={handleStatusChange}
+                    disabled={loading}
+                    className="w-full p-3 border rounded-lg bg-gray-50 text-gray-700 appearance-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option value="Processing">Processing</option>
+                    <option value="Hold">Hold</option>
+                    <option value="Packed">Packed</option>
+                    {isPacked && (
+                      <>
+                        <option value="Shipped">Shipped</option>
+                        <option value="Delivered">Delivered</option>
+                      </>
+                    )}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                    <svg
+                      className="h-5 w-5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -361,21 +532,27 @@ const OrderDetails = ({ orderDetails, onBack }) => {
                   <td className="py-4">{item.name}</td>
                   <td className="py-4">{item.qty}</td>
                   <td className="py-4">₹{formatPrice(item.price)}</td>
-                  <td className="py-4">₹{formatPrice(item.price * item.qty)}</td>
                   <td className="py-4">
-                    {orderDetails.isPaid ? (
+                    ₹{formatPrice(item.price * item.qty)}
+                  </td>
+                  <td className="py-4">
+                    {orderDetails.isPaid && (
                       <button
-                        onClick={() => setOpenRefundModal(true)}
-                        className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 text-sm"
+                        onClick={() => !item.refunded && handleRefundClick(item._id)}
+                        disabled={item.refunded}
+                        className={`px-3 py-1.5 rounded-lg text-sm ${
+                          item.refunded 
+                            ? 'bg-green-100 text-green-600 cursor-default'
+                            : 'bg-red-100 text-red-600 hover:bg-red-200'
+                        }`}
                       >
-                        Refund
-                      </button>
-                    ) : (
-                      <button
-                        disabled
-                        className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-lg cursor-not-allowed text-sm"
-                      >
-                        Payment Pending
+                        {item.refunded ? (
+                          <div className="flex items-center gap-1">
+                            <span>Refunded</span>
+                          </div>
+                        ) : (
+                          "Refund"
+                        )}
                       </button>
                     )}
                   </td>

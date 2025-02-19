@@ -1,8 +1,8 @@
-import axios from 'axios';
-import { API_BASE_URL } from '../config/api';
+import axios from "axios";
+import { API_BASE_URL } from "../config/api";
 
 const getAuthHeader = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   return {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -20,7 +20,7 @@ const orderService = {
       );
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch orders' };
+      throw error.response?.data || { message: "Failed to fetch orders" };
     }
   },
 
@@ -33,7 +33,9 @@ const orderService = {
       );
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch order details' };
+      throw (
+        error.response?.data || { message: "Failed to fetch order details" }
+      );
     }
   },
 
@@ -47,7 +49,23 @@ const orderService = {
       );
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to update order status' };
+      throw (
+        error.response?.data || { message: "Failed to update order status" }
+      );
+    }
+  },
+
+  // Update shipping status
+  updateShippingStatus: async (orderId, shippingStatus) => {
+    try {
+      const response = await axios.put(
+        `${API_BASE_URL}/orders/${orderId}/shipping-status`,
+        { shippingStatus },
+        getAuthHeader()
+      );
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: "Failed to update shipping status" };
     }
   },
 
@@ -61,7 +79,7 @@ const orderService = {
       );
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to update payment status' };
+      throw error.response?.data || { message: "Failed to update payment status" };
     }
   },
 
@@ -74,23 +92,21 @@ const orderService = {
       );
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to delete order' };
+      throw error.response?.data || { message: "Failed to delete order" };
     }
   },
 
-  // Process refund
-  processRefund: async (orderId, refundAmount) => {
+  // Process refund for specific order item
+  processRefund: async (orderId, itemId, amount) => {
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/orders/${orderId}/refund`,
-        { refundAmount },
-        getAuthHeader()
-      );
+      const response = await axios.put(`${API_BASE_URL}/orders/items/${itemId}/refund`, {
+        refundAmount: amount
+      }, getAuthHeader());
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to process refund' };
+      throw error.response?.data || error;
     }
-  }
+  },
 };
 
-export default orderService; 
+export default orderService;
