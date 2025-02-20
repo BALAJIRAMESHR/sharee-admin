@@ -8,10 +8,12 @@ import {
   Settings,
   LogOut
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-const Sidebar = ({ active }) => {
+const Sidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname.substring(1); // Remove leading slash
   const userPermissions = JSON.parse(localStorage.getItem('userPermissions') || '{}');
 
   const handleLogout = () => {
@@ -56,7 +58,7 @@ const Sidebar = ({ active }) => {
           <div
             key={index}
             className={`px-4 py-3 text-gray-700 flex items-center gap-3 hover:bg-purple-50 hover:text-purple-600 cursor-pointer ${
-              active === item.name 
+              currentPath === item.name.toLowerCase().replace(/\s+/g, '-')
                 ? 'bg-purple-100 text-purple-600 border-l-4 border-purple-700' 
                 : 'border-l-4 border-white'
             }`}
