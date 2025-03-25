@@ -18,7 +18,7 @@ import User from "./pages/UserManagement/usermanagement.jsx";
 import Login from "./pages/Login/Login";
 import Marketing from "./pages/marketing/marketing.jsx";
 import { useEffect } from "react";
-
+import { ToastContainer } from "react-toastify";
 function HomeRedirect() {
   const navigate = useNavigate();
 
@@ -132,6 +132,7 @@ function App() {
   return (
     <div className="font-bodyFont">
       <RouterProvider router={router} />
+      <ToastContainer />
     </div>
   );
 }

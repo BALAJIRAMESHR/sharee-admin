@@ -33,4 +33,23 @@ export const variantService = {
       throw error;
     }
   },
+
+  deleteVariant: async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/variants/deletevariant/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete variant');
+      }
+      return response.json();
+    } catch (error) {
+      console.error('Variant service error:', error);
+      throw error;
+    }
+  },
 }; 

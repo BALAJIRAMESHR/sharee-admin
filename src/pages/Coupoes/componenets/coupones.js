@@ -323,18 +323,37 @@ const CouponForm = ({ onClose, onSubmit, onBack }) => {
               <label className="block text-sm font-medium mb-2">
                 Expiry Date <span className="text-red-500">*</span>
               </label>
-              <input
-                type="datetime-local"
-                className="w-full p-2 border rounded-lg"
-                min={new Date().toISOString().slice(0, 16)}
-                value={formData.timeDuration.toISOString().slice(0, 16)}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    timeDuration: new Date(e.target.value),
-                  })
-                }
-              />
+              <div className="flex gap-4">
+                <input
+                  type="date"
+                  className="w-1/2 p-2 border rounded-lg"
+                  min={new Date().toISOString().split('T')[0]}
+                  value={formData.timeDuration.toISOString().split('T')[0]}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      timeDuration: new Date(
+                        e.target.value + 'T' + 
+                        formData.timeDuration.toTimeString().split(' ')[0]
+                      ),
+                    })
+                  }
+                />
+                <input
+                  type="time"
+                  className="w-1/2 p-2 border rounded-lg"
+                  value={formData.timeDuration.toTimeString().slice(0, 5)}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      timeDuration: new Date(
+                        formData.timeDuration.toISOString().split('T')[0] + 
+                        'T' + e.target.value
+                      ),
+                    })
+                  }
+                />
+              </div>
             </div>
 
             <div>
@@ -388,6 +407,18 @@ const CouponForm = ({ onClose, onSubmit, onBack }) => {
 
 // Coupon Ticket Component
 const CouponTicket = ({ coupon, onBack }) => {
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      await axios.patch(`${API_BASE_URL}/coupons/${coupon.id}`, { isDeleted: true });
+      onBack();
+    } catch (error) {
+      console.error('Error deleting coupon:', error);
+      alert('Failed to delete coupon');
+    }
+  };
+
   const {
     name = "First Purchase Discount",
     product = "All Products",
@@ -409,7 +440,36 @@ const CouponTicket = ({ coupon, onBack }) => {
             <ArrowLeft size={20} className="mr-2" />
             Back
           </button>
+          <button
+            onClick={() => setShowDeleteConfirmation(true)}
+            className="text-red-600 hover:text-red-700 font-medium"
+          >
+            Delete Coupon
+          </button>
         </div>
+
+        {showDeleteConfirmation && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+              <h3 className="text-lg font-semibold mb-4">Delete Coupon</h3>
+              <p className="text-gray-600 mb-6">Are you sure you want to delete this coupon?</p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirmation(false)}
+                  className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="relative">
           <div className="bg-purple-500 rounded-xl p-6 text-white relative overflow-hidden">

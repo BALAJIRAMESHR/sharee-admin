@@ -7,6 +7,7 @@ import { variantService } from "../../../services/variantService";
 import VariantPopup from "./VariantPopup";
 import PropTypes from "prop-types";
 import axios from "axios";
+import StyledVariantDropdown from "./StyledVariantDropdown";
 
 const AddProduct = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -223,8 +224,8 @@ const AddProduct = ({ onSubmit, onCancel }) => {
   };
 
   const base64ToFile = (base64String, fileName) => {
-    const byteString = atob(base64String.split(',')[1]);
-    const mimeString = base64String.split(',')[0].split(':')[1].split(';')[0];
+    const byteString = atob(base64String.split(",")[1]);
+    const mimeString = base64String.split(",")[0].split(":")[1].split(";")[0];
     const ab = new ArrayBuffer(byteString.length);
     const ia = new Uint8Array(ab);
     for (let i = 0; i < byteString.length; i++) {
@@ -233,24 +234,24 @@ const AddProduct = ({ onSubmit, onCancel }) => {
     const blob = new Blob([ab], { type: mimeString });
     return new File([blob], fileName, { type: mimeString });
   };
-  
+
   const uploadImage = async (base64String, fileName) => {
     const file = base64ToFile(base64String, fileName);
-  
+
     const data = new FormData();
-    data.append('file', file);
-  
+    data.append("file", file);
+
     const config = {
-      method: 'post',
+      method: "post",
       maxBodyLength: Infinity,
-      url: '/upload', 
+      url: "/upload",
       headers: {
-        'Authorization': 'QuindlTokPATFileUpload2025#$$TerOiu$',
-        'Content-Type': 'multipart/form-data'
+        Authorization: "QuindlTokPATFileUpload2025#$$TerOiu$",
+        "Content-Type": "multipart/form-data",
       },
-      data: data
+      data: data,
     };
-  
+
     try {
       const response = await axios.request(config);
       console.log(response.data);
@@ -260,7 +261,7 @@ const AddProduct = ({ onSubmit, onCancel }) => {
       return null;
     }
   };
-  
+
   const uploadImagesAndGetUrls = async (images) => {
     const urls = [];
     for (const image of images) {
@@ -285,25 +286,37 @@ const AddProduct = ({ onSubmit, onCancel }) => {
       const dataToSubmit = {
         ...productDataToSubmit,
         tax: productDataToSubmit.tax ? Number(productDataToSubmit.tax) : 0,
-        stock: productDataToSubmit.stock ? Number(productDataToSubmit.stock) : 0,
-        actualPrice: productDataToSubmit.actualPrice ? Number(productDataToSubmit.actualPrice) : 0,
-        sellingPrice: productDataToSubmit.sellingPrice ? Number(productDataToSubmit.sellingPrice) : 0,
-        sareeSize: productDataToSubmit.sareeSize ? Number(productDataToSubmit.sareeSize) : 5.5,
-        blouseSize: productDataToSubmit.blouseSize ? Number(productDataToSubmit.blouseSize) : 0.8,
+        stock: productDataToSubmit.stock
+          ? Number(productDataToSubmit.stock)
+          : 0,
+        actualPrice: productDataToSubmit.actualPrice
+          ? Number(productDataToSubmit.actualPrice)
+          : 0,
+        sellingPrice: productDataToSubmit.sellingPrice
+          ? Number(productDataToSubmit.sellingPrice)
+          : 0,
+        sareeSize: productDataToSubmit.sareeSize
+          ? Number(productDataToSubmit.sareeSize)
+          : 5.5,
+        blouseSize: productDataToSubmit.blouseSize
+          ? Number(productDataToSubmit.blouseSize)
+          : 0.8,
         availability: Boolean(productDataToSubmit.availability),
         materialAndCare: Array.isArray(productDataToSubmit.materialAndCare)
           ? productDataToSubmit.materialAndCare.join(", ")
           : "",
-        tags: Array.isArray(productDataToSubmit.tags) ? productDataToSubmit.tags : [],
-        images: imageUrls
+        tags: Array.isArray(productDataToSubmit.tags)
+          ? productDataToSubmit.tags
+          : [],
+        images: imageUrls,
       };
 
       console.log("Submitting product data:", dataToSubmit);
 
       const response = await productService.addProduct(dataToSubmit);
       console.log("Server response:", response);
-      
-      if (typeof onSubmit === 'function') {
+
+      if (typeof onSubmit === "function") {
         onSubmit(response);
       }
     } catch (error) {
@@ -314,8 +327,16 @@ const AddProduct = ({ onSubmit, onCancel }) => {
 
   const handleCancel = () => {
     // Call the onCancel prop function to return to product management page
-    if (typeof onCancel === 'function') {
+    if (typeof onCancel === "function") {
       onCancel();
+    }
+  };
+
+  const handleVariantDeleted = async () => {
+    try {
+      await fetchVariants(); // Refresh the variants list
+    } catch (error) {
+      console.error("Error refreshing variants:", error);
     }
   };
 
@@ -378,28 +399,29 @@ const AddProduct = ({ onSubmit, onCancel }) => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Variant</label>
-              <div className="flex gap-2">
-                <select
-                  name="variantName"
-                  value={formData.variantName}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded-md"
-                >
-                  <option value="">Select Variant</option>
-                  {variants.map((variant) => (
-                    <option key={variant._id} value={variant.variantName}>
-                      {variant.variantName}
-                    </option>
-                  ))}
-                </select>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Variant
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <StyledVariantDropdown
+                    variants={variants}
+                    value={formData.variantName}
+                    onChange={(e) =>
+                      handleInputChange({
+                        target: { name: "variantName", value: e.target.value },
+                      })
+                    }
+                    onVariantDeleted={handleVariantDeleted}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowVariantPopup(true)}
-                  className="px-3 py-2 border rounded-md hover:bg-gray-50"
+                  className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 whitespace-nowrap"
                 >
-                  +
+                  Add New
                 </button>
               </div>
             </div>

@@ -113,6 +113,17 @@ const OrderDetails = ({ orderDetails, onBack }) => {
 
   const handleStatusChange = async (event) => {
     const newStatus = event.target.value;
+
+    // More explicit check for payment status
+    if (newStatus === "Delivered") {
+      if (!orderData.isPaid) {
+        toast.error("Payment is required before marking order as delivered");
+        // Reset the select input to previous value
+        event.target.value = shippingStatus;
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // Update shipping status in backend
@@ -538,12 +549,14 @@ const OrderDetails = ({ orderDetails, onBack }) => {
                   <td className="py-4">
                     {orderDetails.isPaid && (
                       <button
-                        onClick={() => !item.refunded && handleRefundClick(item._id)}
+                        onClick={() =>
+                          !item.refunded && handleRefundClick(item._id)
+                        }
                         disabled={item.refunded}
                         className={`px-3 py-1.5 rounded-lg text-sm ${
-                          item.refunded 
-                            ? 'bg-green-100 text-green-600 cursor-default'
-                            : 'bg-red-100 text-red-600 hover:bg-red-200'
+                          item.refunded
+                            ? "bg-green-100 text-green-600 cursor-default"
+                            : "bg-red-100 text-red-600 hover:bg-red-200"
                         }`}
                       >
                         {item.refunded ? (

@@ -39,19 +39,17 @@ const orderService = {
     }
   },
 
-  // Update order delivery status
-  updateOrderStatus: async (orderId, isDelivered) => {
+  // Update order status
+  updateOrderStatus: async (orderId, statusUpdate) => {
     try {
       const response = await axios.put(
-        `${API_BASE_URL}/orders/${orderId}/deliver`,
-        { isDelivered },
+        `${API_BASE_URL}/orders/${orderId}/status`,
+        statusUpdate,
         getAuthHeader()
       );
       return response.data;
     } catch (error) {
-      throw (
-        error.response?.data || { message: "Failed to update order status" }
-      );
+      throw error.response?.data || { message: "Failed to update order status" };
     }
   },
 
@@ -65,7 +63,9 @@ const orderService = {
       );
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: "Failed to update shipping status" };
+      throw (
+        error.response?.data || { message: "Failed to update shipping status" }
+      );
     }
   },
 
@@ -79,7 +79,9 @@ const orderService = {
       );
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: "Failed to update payment status" };
+      throw (
+        error.response?.data || { message: "Failed to update payment status" }
+      );
     }
   },
 
@@ -99,9 +101,13 @@ const orderService = {
   // Process refund for specific order item
   processRefund: async (orderId, itemId, amount) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/orders/items/${itemId}/refund`, {
-        refundAmount: amount
-      }, getAuthHeader());
+      const response = await axios.put(
+        `${API_BASE_URL}/orders/items/${itemId}/refund`,
+        {
+          refundAmount: amount,
+        },
+        getAuthHeader()
+      );
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

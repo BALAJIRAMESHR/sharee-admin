@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { MoreVertical, Plus, Edit, Trash2 } from "lucide-react";
 import AddCategoryModal from "./AddCategoryModal";
 import { API_BASE_URL } from "../../../config/api";
-import axios from 'axios';
-import { handleImageError, getImageUrl } from '../../../utils/imageUtils';
+import axios from "axios";
+import { handleImageError, getImageUrl } from "../../../utils/imageUtils";
 
 const CategoryManagement = () => {
   const [categories, setCategories] = useState([]);
@@ -35,86 +35,93 @@ const CategoryManagement = () => {
 
   const uploadImage = async (imageFile) => {
     try {
-      console.log('Starting image upload...', imageFile);
-      
+      console.log("Starting image upload...", imageFile);
+
       // If imageFile is already a URL, return it directly
-      if (typeof imageFile === 'string' && imageFile.startsWith('http')) {
+      if (typeof imageFile === "string" && imageFile.startsWith("http")) {
         return imageFile;
       }
 
       // Validate file
-      if (!imageFile || !imageFile.type.startsWith('image/')) {
-        throw new Error('Please select a valid image file');
+      if (!imageFile || !imageFile.type.startsWith("image/")) {
+        throw new Error("Please select a valid image file");
       }
 
       const formData = new FormData();
-      formData.append('file', imageFile);
+      formData.append("file", imageFile);
 
       // Use API_BASE_URL instead of hardcoded URL
       const uploadUrl = `/upload`;
-      console.log('Uploading to:', uploadUrl);
-      console.log('File being uploaded:', imageFile.name, imageFile.type);
+      console.log("Uploading to:", uploadUrl);
+      console.log("File being uploaded:", imageFile.name, imageFile.type);
 
       const response = await axios.post(uploadUrl, formData, {
         headers: {
-          'Authorization': 'QuindlTokPATFileUpload2025#$$TerOiu$',
-          'Content-Type': 'multipart/form-data',
-          'Accept': 'application/json',
+          Authorization: "QuindlTokPATFileUpload2025#$$TerOiu$",
+          "Content-Type": "multipart/form-data",
+          Accept: "application/json",
         },
         withCredentials: true, // Add this to handle CORS
         onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          console.log('Upload progress:', percentCompleted, '%');
-        }
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          console.log("Upload progress:", percentCompleted, "%");
+        },
       });
 
-      console.log('Upload response:', response.data);
+      console.log("Upload response:", response.data);
 
       if (!response.data || !response.data.filePath) {
-        throw new Error('Invalid response from upload server');
+        throw new Error("Invalid response from upload server");
       }
 
       return response.data.filePath;
     } catch (error) {
-      console.error('Detailed upload error:', {
+      console.error("Detailed upload error:", {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        code: error.code
+        code: error.code,
       });
-      
-      if (error.message === 'Network Error') {
-        throw new Error('Unable to connect to the server. Please check your connection and try again.');
+
+      if (error.message === "Network Error") {
+        throw new Error(
+          "Unable to connect to the server. Please check your connection and try again."
+        );
       }
-      
+
       // More specific error messages based on the error type
       if (error.response?.status === 401) {
-        throw new Error('Unauthorized: Invalid or missing authorization token');
+        throw new Error("Unauthorized: Invalid or missing authorization token");
       } else if (error.response?.status === 413) {
-        throw new Error('File is too large');
-      } else if (error.code === 'ECONNREFUSED') {
-        throw new Error('Unable to connect to upload server');
+        throw new Error("File is too large");
+      } else if (error.code === "ECONNREFUSED") {
+        throw new Error("Unable to connect to upload server");
       }
-      
+
       throw new Error(`Failed to upload image: ${error.message}`);
     }
   };
 
   const handleAddCategory = async (categoryName, image, categoryType) => {
     try {
-      console.log('Starting category addition with:', { categoryName, categoryType });
-      
+      console.log("Starting category addition with:", {
+        categoryName,
+        categoryType,
+      });
+
       if (!image) {
-        throw new Error('Please select an image');
+        throw new Error("Please select an image");
       }
 
       // Upload image first
-      console.log('Uploading image...');
+      console.log("Uploading image...");
       const imageUrl = await uploadImage(image);
-      console.log('Image uploaded successfully:', imageUrl);
+      console.log("Image uploaded successfully:", imageUrl);
 
       // Create category
-      console.log('Creating category with image URL:', imageUrl);
+      console.log("Creating category with image URL:", imageUrl);
       const response = await fetch(`${API_BASE_URL}/categories/addcategory`, {
         method: "POST",
         headers: {
@@ -133,7 +140,7 @@ const CategoryManagement = () => {
       }
 
       const result = await response.json();
-      console.log('Category created successfully:', result);
+      console.log("Category created successfully:", result);
 
       await fetchCategories();
       setShowAddModal(false);
@@ -158,9 +165,9 @@ const CategoryManagement = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            isDeleted: true
+            isDeleted: true,
           }),
-          credentials: 'include',
+          credentials: "include",
         }
       );
 
@@ -169,10 +176,10 @@ const CategoryManagement = () => {
       }
 
       // Remove the deleted category from the local state
-      setCategories(prevCategories => 
-        prevCategories.filter(category => category._id !== categoryToDelete)
+      setCategories((prevCategories) =>
+        prevCategories.filter((category) => category._id !== categoryToDelete)
       );
-      
+
       setShowDeleteModal(false);
       setCategoryToDelete(null);
       setOpenMenuId(null);
@@ -186,20 +193,20 @@ const CategoryManagement = () => {
     if (newCategoryName.trim()) {
       try {
         let imageUrl = editingCategory.categotyImage;
-        
+
         // Upload new image if provided
         if (newImage) {
-          console.log('Uploading new image for edit...', newImage);
+          console.log("Uploading new image for edit...", newImage);
           try {
             imageUrl = await uploadImage(newImage);
-            console.log('New image uploaded successfully:', imageUrl);
+            console.log("New image uploaded successfully:", imageUrl);
           } catch (uploadError) {
-            console.error('Image upload failed:', uploadError);
-            alert('Failed to upload new image. Please try again.');
+            console.error("Image upload failed:", uploadError);
+            alert("Failed to upload new image. Please try again.");
             return;
           }
         } else {
-          console.log('Using existing image:', imageUrl);
+          console.log("Using existing image:", imageUrl);
         }
 
         const response = await fetch(
@@ -214,7 +221,7 @@ const CategoryManagement = () => {
               categoryType: categoryType,
               categotyImage: imageUrl,
             }),
-            credentials: 'include', // Add this for CORS
+            credentials: "include", // Add this for CORS
           }
         );
 
@@ -223,7 +230,7 @@ const CategoryManagement = () => {
           throw new Error(errorData.error || "Failed to update category");
         }
 
-        console.log('Category updated successfully with image:', imageUrl);
+        console.log("Category updated successfully with image:", imageUrl);
         await fetchCategories();
         setIsEditing(false);
         setEditingCategory(null);

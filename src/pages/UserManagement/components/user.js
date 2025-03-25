@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Edit } from 'lucide-react';
-import axios from 'axios';
-import { API_BASE_URL } from '../../../config/api';
+import React, { useState, useEffect } from "react";
+import { Edit } from "lucide-react";
+import axios from "axios";
+import { API_BASE_URL } from "../../../config/api";
+import { useNavigate } from "react-router-dom";
 
 const INITIAL_PERMISSIONS = {
   productManagement: false,
@@ -10,16 +11,16 @@ const INITIAL_PERMISSIONS = {
   couponsManagement: false,
   inventoryManagement: false,
   marketingManagement: false,
-  userManagement: false
+  userManagement: false,
 };
 
 const INITIAL_USER_STATE = {
-  username: '',
-  email: '',
-  password: '',
-  phoneNumber: '',
-  address: '',
-  permissions: INITIAL_PERMISSIONS
+  username: "",
+  email: "",
+  password: "",
+  phoneNumber: "",
+  address: "",
+  permissions: INITIAL_PERMISSIONS,
 };
 
 const UserManagement = () => {
@@ -27,14 +28,19 @@ const UserManagement = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [newUser, setNewUser] = useState(INITIAL_USER_STATE);
-  const [editUser, setEditUser] = useState({ ...INITIAL_USER_STATE, password: undefined });
+  const [editUser, setEditUser] = useState({
+    ...INITIAL_USER_STATE,
+    password: undefined,
+  });
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   const fetchUsers = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/admin/getallusers`);
       setUsers(response.data);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error("Error fetching users:", error);
       // You might want to show an error toast or message here
     }
   };
@@ -43,7 +49,28 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    const checkPermissions = () => {
+      const permissions = JSON.parse(
+        localStorage.getItem("userPermissions") || "{}"
+      );
+      if (!permissions.userManagement) {
+        navigate("/dashboard"); // Redirect if no permission
+      }
+    };
+
+    checkPermissions();
+  }, [navigate]);
+
   const handleCreateUser = async () => {
+    const permissions = JSON.parse(
+      localStorage.getItem("userPermissions") || "{}"
+    );
+    if (!permissions.userManagement) {
+      setError("You don't have permission to create users");
+      return;
+    }
+
     try {
       const userData = {
         username: newUser.username,
@@ -51,24 +78,38 @@ const UserManagement = () => {
         password: newUser.password,
         phoneNumber: newUser.phoneNumber,
         address: newUser.address,
-        permissions: newUser.permissions
+        permissions: newUser.permissions,
       };
 
-      const response = await axios.post(`${API_BASE_URL}/api/admin/add`, userData);
+      const response = await axios.post(
+        `${API_BASE_URL}/api/admin/add`,
+        userData
+      );
 
-      if (response.data.message === 'Admin user created successfully') {
+      if (response.data.message === "Admin user created successfully") {
         fetchUsers();
         setIsCreateModalOpen(false);
         setNewUser(INITIAL_USER_STATE);
         // Add success notification here if needed
       }
     } catch (error) {
-      console.error('Error creating user:', error.response?.data?.message || error.message);
+      console.error(
+        "Error creating user:",
+        error.response?.data?.message || error.message
+      );
       // Add error notification here if needed
     }
   };
 
   const handleEdit = (user) => {
+    const permissions = JSON.parse(
+      localStorage.getItem("userPermissions") || "{}"
+    );
+    if (!permissions.userManagement) {
+      setError("You don't have permission to edit users");
+      return;
+    }
+
     setEditingId(user._id);
     setEditUser({
       username: user.username,
@@ -76,26 +117,37 @@ const UserManagement = () => {
       phoneNumber: user.phoneNumber,
       address: user.address,
       permissions: { ...user.permissions },
-      isActive: user.isActive
+      isActive: user.isActive,
     });
   };
 
   const handleSaveEdit = async (id) => {
+    const permissions = JSON.parse(
+      localStorage.getItem("userPermissions") || "{}"
+    );
+    if (!permissions.userManagement) {
+      setError("You don't have permission to save user changes");
+      return;
+    }
+
     try {
       const response = await axios.put(`${API_BASE_URL}/api/admin/edit/${id}`, {
         username: editUser.username,
         address: editUser.address,
         permissions: editUser.permissions,
-        isActive: editUser.isActive
+        isActive: editUser.isActive,
       });
 
-      if (response.data.message === 'Admin user updated successfully') {
+      if (response.data.message === "Admin user updated successfully") {
         fetchUsers();
         setEditingId(null);
         // Add success notification here if needed
       }
     } catch (error) {
-      console.error('Error updating user:', error.response?.data?.message || error.message);
+      console.error(
+        "Error updating user:",
+        error.response?.data?.message || error.message
+      );
       // Add error notification here if needed
     }
   };
@@ -104,21 +156,27 @@ const UserManagement = () => {
     const { name, value } = e.target;
     setter((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handlePermissionChange = (setter) => (permission) => {
-    setter(prev => ({
+    setter((prev) => ({
       ...prev,
       permissions: {
         ...prev.permissions,
-        [permission]: !prev.permissions[permission]
-      }
+        [permission]: !prev.permissions[permission],
+      },
     }));
   };
 
-  const PermissionCheckbox = ({ name, label, checked, onChange, disabled = false }) => (
+  const PermissionCheckbox = ({
+    name,
+    label,
+    checked,
+    onChange,
+    disabled = false,
+  }) => (
     <div className="flex items-center gap-3">
       <input
         type="checkbox"
@@ -146,9 +204,9 @@ const UserManagement = () => {
       <div key={field} className="flex items-center gap-3">
         <span className="text-xl">{icon}</span>
         <input
-          type={field === 'email' ? 'email' : 'text'}
+          type={field === "email" ? "email" : "text"}
           name={field}
-          value={currentUser[field] || ''}
+          value={currentUser[field] || ""}
           onChange={handleInputChange(setEditUser)}
           className="flex-1 border-2 border-blue-200 rounded-lg p-2 text-base focus:outline-none focus:border-purple-400"
         />
@@ -160,12 +218,16 @@ const UserManagement = () => {
         <div className="border-b border-dotted border-gray-200 pb-6">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
-              <div className={`w-5 h-5 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-red-500'}`} />
+              <div
+                className={`w-5 h-5 rounded-full ${
+                  user.isActive ? "bg-green-500" : "bg-red-500"
+                }`}
+              />
               <span className="text-base font-medium">
-                {user.isActive ? 'User Active' : 'User Inactive'}
+                {user.isActive ? "User Active" : "User Inactive"}
               </span>
             </div>
-            <button 
+            <button
               onClick={() => handleEdit(user)}
               className="p-3 rounded-full bg-purple-100 hover:bg-purple-200"
             >
@@ -176,17 +238,19 @@ const UserManagement = () => {
           <div className="space-y-4 mt-6">
             {isEditing ? (
               <div className="space-y-4">
-                {renderInput('username', '👤')}
-                {renderInput('phoneNumber', '📞')}
-                {renderInput('email', '✉️')}
-                {renderInput('address', '📍')}
+                {renderInput("username", "👤")}
+                {renderInput("phoneNumber", "📞")}
+                {renderInput("email", "✉️")}
+                {renderInput("address", "📍")}
               </div>
             ) : (
               <>
                 <UserInfoField icon="👤" value={user.username} />
                 <UserInfoField icon="📞" value={user.phoneNumber} />
                 <UserInfoField icon="✉️" value={user.email} />
-                {user.address && <UserInfoField icon="📍" value={user.address} />}
+                {user.address && (
+                  <UserInfoField icon="📍" value={user.address} />
+                )}
               </>
             )}
           </div>
@@ -197,9 +261,11 @@ const UserManagement = () => {
             <PermissionCheckbox
               key={key}
               name={key}
-              label={key.replace('Management', ' Management')}
+              label={key.replace("Management", " Management")}
               checked={currentUser.permissions[key]}
-              onChange={() => isEditing && handlePermissionChange(setEditUser)(key)}
+              onChange={() =>
+                isEditing && handlePermissionChange(setEditUser)(key)
+              }
               disabled={!isEditing}
             />
           ))}
@@ -226,12 +292,16 @@ const UserManagement = () => {
   };
 
   const CreateUserModal = () => (
-    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${isCreateModalOpen ? '' : 'hidden'}`}>
+    <div
+      className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${
+        isCreateModalOpen ? "" : "hidden"
+      }`}
+    >
       <div className="bg-white rounded-lg p-8 w-full max-w-4xl mx-4">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-medium">Create New User</h2>
-          <button 
-            onClick={() => setIsCreateModalOpen(false)} 
+          <button
+            onClick={() => setIsCreateModalOpen(false)}
             className="text-gray-500 text-2xl hover:text-gray-700"
           >
             ×
@@ -321,7 +391,9 @@ const UserManagement = () => {
               <input
                 type="checkbox"
                 checked={newUser.permissions.productManagement}
-                onChange={() => handlePermissionChange(setNewUser)('productManagement')}
+                onChange={() =>
+                  handlePermissionChange(setNewUser)("productManagement")
+                }
                 className="rounded border-gray-300"
               />
               <span className="text-sm">Product Management</span>
@@ -330,7 +402,9 @@ const UserManagement = () => {
               <input
                 type="checkbox"
                 checked={newUser.permissions.categoryManagement}
-                onChange={() => handlePermissionChange(setNewUser)('categoryManagement')}
+                onChange={() =>
+                  handlePermissionChange(setNewUser)("categoryManagement")
+                }
                 className="rounded border-gray-300"
               />
               <span className="text-sm">Category Management</span>
@@ -339,7 +413,9 @@ const UserManagement = () => {
               <input
                 type="checkbox"
                 checked={newUser.permissions.orderManagement}
-                onChange={() => handlePermissionChange(setNewUser)('orderManagement')}
+                onChange={() =>
+                  handlePermissionChange(setNewUser)("orderManagement")
+                }
                 className="rounded border-gray-300"
               />
               <span className="text-sm">Order Management</span>
@@ -348,7 +424,9 @@ const UserManagement = () => {
               <input
                 type="checkbox"
                 checked={newUser.permissions.couponsManagement}
-                onChange={() => handlePermissionChange(setNewUser)('couponsManagement')}
+                onChange={() =>
+                  handlePermissionChange(setNewUser)("couponsManagement")
+                }
                 className="rounded border-gray-300"
               />
               <span className="text-sm">Coupons Management</span>
@@ -357,7 +435,9 @@ const UserManagement = () => {
               <input
                 type="checkbox"
                 checked={newUser.permissions.inventoryManagement}
-                onChange={() => handlePermissionChange(setNewUser)('inventoryManagement')}
+                onChange={() =>
+                  handlePermissionChange(setNewUser)("inventoryManagement")
+                }
                 className="rounded border-gray-300"
               />
               <span className="text-sm">Inventory Management</span>
@@ -366,10 +446,23 @@ const UserManagement = () => {
               <input
                 type="checkbox"
                 checked={newUser.permissions.marketingManagement}
-                onChange={() => handlePermissionChange(setNewUser)('marketingManagement')}
+                onChange={() =>
+                  handlePermissionChange(setNewUser)("marketingManagement")
+                }
                 className="rounded border-gray-300"
               />
               <span className="text-sm">Marketing Management</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={newUser.permissions.userManagement}
+                onChange={() =>
+                  handlePermissionChange(setNewUser)("userManagement")
+                }
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">User Management</span>
             </div>
           </div>
         </div>
@@ -394,6 +487,11 @@ const UserManagement = () => {
 
   return (
     <div className="p-6">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+          {error}
+        </div>
+      )}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-semibold">User Management</h1>
         <button
@@ -405,7 +503,7 @@ const UserManagement = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {users.map(user => (
+        {users.map((user) => (
           <UserCard key={user._id} user={user} />
         ))}
       </div>

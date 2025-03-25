@@ -14,8 +14,8 @@ const ADMIN_USER = {
     couponsManagement: true,
     inventoryManagement: true,
     marketingManagement: true,
-    userManagement: true
-  }
+    userManagement: true,
+  },
 };
 
 function Login() {
@@ -52,7 +52,7 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       // First try built-in admin credentials
       if (formData.username === "admin" && formData.password === "pass") {
@@ -63,32 +63,40 @@ function Login() {
           couponsManagement: true,
           inventoryManagement: true,
           marketingManagement: true,
-          userManagement: true
+          userManagement: true,
         };
-        
-        localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
-        localStorage.setItem('userRole', 'admin');
+
+        localStorage.setItem(
+          "userPermissions",
+          JSON.stringify(adminPermissions)
+        );
+        localStorage.setItem("userRole", "admin");
         navigate("/dashboard");
         return;
       }
 
-      // If not admin, try API login
+      // If not admin, try API login with identifier (username or email)
       const response = await axios.post(`${API_BASE_URL}/api/admin/login`, {
-        email: formData.username,
-        password: formData.password
+        identifier: formData.username, // Send as identifier instead of email
+        password: formData.password,
       });
 
-      if (response.data.message === 'Login successful') {
-        localStorage.setItem('userPermissions', JSON.stringify(response.data.user.permissions));
-        localStorage.setItem('userRole', 'admin');
-        localStorage.setItem('userId', response.data.user._id);
-        localStorage.setItem('token', response.data.user.token);
+      if (response.data.message === "Login successful") {
+        localStorage.setItem(
+          "userPermissions",
+          JSON.stringify(response.data.user.permissions)
+        );
+        localStorage.setItem("userRole", "admin");
+        localStorage.setItem("userId", response.data.user._id);
+        localStorage.setItem("token", response.data.user.token);
         navigate("/dashboard");
       } else {
         throw new Error(response.data.message || "Login failed");
       }
     } catch (error) {
-      setError(error.message || "Invalid email or password");
+      setError(
+        error.response?.data?.message || error.message || "Invalid credentials"
+      );
       setShowError(true);
       setTimeout(() => {
         setShowError(false);
