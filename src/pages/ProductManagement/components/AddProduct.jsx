@@ -23,6 +23,7 @@ const AddProduct = ({ onSubmit, onCancel }) => {
     couponCode: "",
     couponMethod: "",
     color: "",
+    productType: "",
     images: [],
     tags: [],
     stock: "",
@@ -302,6 +303,7 @@ const AddProduct = ({ onSubmit, onCancel }) => {
           ? Number(productDataToSubmit.blouseSize)
           : 0.8,
         availability: Boolean(productDataToSubmit.availability),
+        productType: productDataToSubmit.productType,
         materialAndCare: Array.isArray(productDataToSubmit.materialAndCare)
           ? productDataToSubmit.materialAndCare.join(", ")
           : "",
@@ -722,6 +724,23 @@ const AddProduct = ({ onSubmit, onCancel }) => {
                   className="w-full p-2 border rounded-md"
                 />
               </div>
+            </div>
+
+            {/* dropdown for New Arrivals or Sale or Normal */}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Product Falls Under
+              </label>
+              <select
+                name="productType"
+                value={formData.productType}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded-md"
+              >
+                <option value="New Arrivals">New Arrivals</option>
+                <option value="Sale">Sale</option>
+                <option value="Normal">Normal</option>
+              </select>
             </div>
 
             <div>
